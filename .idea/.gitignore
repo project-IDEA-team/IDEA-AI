@@ -1,0 +1,61 @@
+# ---------------------------
+# 🐍 Python 관련
+# ---------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+
+# 가상환경 폴더
+.venv/
+env/
+venv/
+
+# pip 환경 설정 파일
+pip-log.txt
+
+# .env 파일 (API 키, DB URI 등)
+.env
+
+# Jupyter Notebook 체크포인트 (혹시 쓸 경우)
+.ipynb_checkpoints/
+
+# ---------------------------
+# 🧠 FastAPI + Uvicorn 관련
+# ---------------------------
+*.sqlite3
+*.db
+instance/
+*.pid
+*.coverage
+coverage.xml
+htmlcov/
+
+# ---------------------------
+# 🛠️ IntelliJ (IDEA) 관련
+# ---------------------------
+.idea/
+*.iml
+*.iws
+out/
+.shelf/
+workspace.xml
+tasks.xml
+httpRequests/
+dataSources/
+dataSources.local.xml
+
+# ---------------------------
+# 📦 기타
+# ---------------------------
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.swp
