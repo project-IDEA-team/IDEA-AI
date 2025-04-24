@@ -16,7 +16,14 @@ URLS = [
     "https://www.kead.or.kr/ndthowapply/cntntsPage.do?menuId=MENU0900",
     "https://www.kead.or.kr/emplymncst/cntntsPage.do?menuId=MENU0666",
     "https://www.kead.or.kr/ffssysdesc/cntntsPage.do?menuId=MENU0701",
-    "https://www.kead.or.kr/bbs/faq/bbsPage.do?adt1Code=007&menuId=MENU0702"
+    "https://www.kead.or.kr/bbs/faq/bbsPage.do?adt1Code=007&menuId=MENU0702",
+    "https://www.kead.or.kr/emplyobsys/cntntsPage.do?menuId=MENU0648",
+    "https://www.kead.or.kr/spremoblgt/cntntsPage.do?menuId=MENU0649",
+    "https://www.kead.or.kr/epstempemppln/cntntsPage.do?menuId=MENU0651",
+    "https://www.kead.or.kr/epstcvlstempln/cntntsPage.do?menuId=MENU0652",
+    "https://www.kead.or.kr/emplfsysdsc/cntntsPage.do?menuId=MENU0654",
+    "https://www.kead.or.kr/emplfeycpcds/cntntsPage.do?menuId=MENU0655",
+    "https://www.kead.or.kr/bbs/faq/bbsPage.do?adt1Code=011&menuId=MENU0656"
 ]
 
 # 🔹 표 내용 추출
