@@ -1,7 +1,5 @@
 from fastapi import FastAPI
+from app.router import chatbot
 
 app = FastAPI()
-
-@app.get("/")
-def read_root():
-    return {"msg": "AI API 서버가 정상 작동 중입니다."}
+app.include_router(chatbot.router)
