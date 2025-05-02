@@ -8,3 +8,4 @@ langchain
 sentence-transformers
 torch
 transformers
+numpy
