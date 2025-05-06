@@ -5,6 +5,9 @@ from app.service.tools.counseling_tools import CounselingTools
 from app.service.openai_client import openai_client
 import re
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CounselingExpert(BaseExpert):
     def __init__(self):
@@ -144,17 +147,13 @@ class CounselingExpert(BaseExpert):
                     logger.error(f"카드 JSON 파싱 실패: {card_text}")
                     # 기본 카드 추가
                     cards = [{
-                        "id": "default_resource",
-                        "title": "ADHD 부모 지원 그룹",
-                        "subtitle": "부모 지원",
-                        "summary": "ADHD 자녀를 둔 부모들이 경험을 공유하고 정보를 나눌 수 있는 지원 그룹입니다.",
-                        "type": "support",
-                        "details": "정기적인 온라인/오프라인 모임을 통해 ADHD 자녀 양육에 관한 조언과 지원을 받을 수 있습니다.",
-                        "source": {
-                            "name": "한국 ADHD 협회",
-                            "url": "https://www.adhd.or.kr",
-                            "phone": "02-123-4567"
-                        }
+                        "id": "no_data",
+                        "title": "관련 정보를 찾을 수 없습니다",
+                        "subtitle": "",
+                        "summary": "요청하신 조건에 맞는 정보를 찾지 못했습니다.",
+                        "type": "info",
+                        "details": "다른 질문을 해주시거나, 상담원에게 문의해 주세요.",
+                        "source": {}
                     }]
         
         return {
