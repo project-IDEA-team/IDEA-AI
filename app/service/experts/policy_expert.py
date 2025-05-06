@@ -104,47 +104,8 @@ class PolicyExpert(BaseExpert):
                     {"type": "link", "label": "자세히 보기", "value": "https://www.mohw.go.kr"},
                     {"type": "tel", "label": "전화 문의", "value": "129"}
                 ]
-            },
-            {
-                "id": "policy2",
-                "title": "장애인활동지원",
-                "subtitle": "장애인복지법",
-                "summary": "장애인의 일상생활 및 사회활동 참여를 지원하는 서비스입니다.",
-                "type": "policy",
-                "details": "장애인활동지원은 장애인의 일상생활 및 사회활동 참여를 지원하는 서비스로, 장애등급 1~3급 장애인에게 제공됩니다. 지원시간은 장애등급에 따라 차등 지급됩니다.",
-                "source": {
-                    "url": "https://www.mohw.go.kr",
-                    "name": "보건복지부",
-                    "email": "support@mohw.go.kr"
-                }
-            },
-            {
-                "id": "policy3",
-                "title": "장애인차별금지법",
-                "subtitle": "장애인권리보장",
-                "summary": "장애인에 대한 차별을 금지하고 권리를 보장하는 법률입니다.",
-                "type": "policy",
-                "details": "장애인차별금지법은 장애인에 대한 차별을 금지하고 권리를 보장하는 법률로, 교육, 고용, 재화와 용역의 제공 등 모든 영역에서의 차별을 금지합니다.",
-                "source": {
-                    "url": "https://www.mohw.go.kr",
-                    "name": "보건복지부"
-                }
             }
         ]
-        
-        # 키워드 매칭 (간단한 구현)
-        if keywords:
-            filtered_cards = []
-            for card in policy_cards:
-                for keyword in keywords:
-                    if (keyword.lower() in card["title"].lower() or 
-                        keyword.lower() in card["summary"].lower() or 
-                        keyword.lower() in card["details"].lower()):
-                        filtered_cards.append(card)
-                        break
-            
-            if filtered_cards:
-                return filtered_cards
         
         # 정책 유형 필터링
         if policy_type:

@@ -22,22 +22,22 @@ class CounselingTools:
             print(f"Warning: {filename} not found")
             return {}
 
-    async def search_counseling_centers(self, query: str) -> List[Dict[str, Any]]:
-        """상담 센터를 검색합니다."""
-        # TODO: 실제 검색 로직 구현
-        return [
-            {
-                "id": "center1",
-                "title": "장애인상담센터",
-                "summary": "장애인과 가족을 위한 전문 상담 서비스",
-                "type": "counseling",
-                "details": "심리상담, 가족상담, 진로상담 등 제공",
-                "source": {
-                    "url": "http://example.com/center1",
-                    "name": "장애인상담센터"
-                }
-            }
-        ]
+    # async def search_counseling_centers(self, query: str) -> List[Dict[str, Any]]:
+    #     """상담 센터를 검색합니다."""
+    #     # TODO: 실제 검색 로직 구현
+    #     return [
+    #         {
+    #             "id": "center1",
+    #             "title": "장애인상담센터",
+    #             "summary": "장애인과 가족을 위한 전문 상담 서비스",
+    #             "type": "counseling",
+    #             "details": "심리상담, 가족상담, 진로상담 등 제공",
+    #             "source": {
+    #                 "url": "http://example.com/center1",
+    #                 "name": "장애인상담센터"
+    #             }
+    #         }
+    #     ]
 
     async def get_emergency_contacts(self) -> List[Dict[str, Any]]:
         """긴급 상담 연락처를 제공합니다."""

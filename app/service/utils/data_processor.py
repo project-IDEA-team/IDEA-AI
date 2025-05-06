@@ -112,33 +112,33 @@ class DataProcessor:
             logger.error(f"JSON 파싱 오류: {e}")
             return None
     
-    @staticmethod
-    def extract_structured_data(text: str) -> Optional[Dict[str, Any]]:
-        """
-        텍스트에서 구조화된 데이터를 추출합니다.
-        
-        Args:
-            text: 구조화된 데이터를 추출할 텍스트
-            
-        Returns:
-            추출된 구조화된 데이터 또는 None (추출 실패 시)
-        """
-        # JSON 형식 문자열 추출 시도
-        json_pattern = r'```json\s*([\s\S]*?)\s*```'
-        json_match = re.search(json_pattern, text)
-        
-        if json_match:
-            json_str = json_match.group(1)
-            return DataProcessor.parse_json_safely(json_str)
-        
-        # 일반 텍스트에서 키-값 쌍 추출 시도
-        result = {}
-        
-        # 간단한 키-값 패턴 (예: "키: 값")
-        kv_pattern = r'([^:\n]+):\s*([^\n]+)'
-        for match in re.finditer(kv_pattern, text):
-            key = match.group(1).strip()
-            value = match.group(2).strip()
-            result[key] = value
-        
-        return result if result else None 
+    # @staticmethod
+    # def extract_structured_data(text: str) -> Optional[Dict[str, Any]]:
+    #     """
+    #     텍스트에서 구조화된 데이터를 추출합니다.
+    #     
+    #     Args:
+    #         text: 구조화된 데이터를 추출할 텍스트
+    #         
+    #     Returns:
+    #         추출된 구조화된 데이터 또는 None (추출 실패 시)
+    #     """
+    #     # JSON 형식 문자열 추출 시도
+    #     json_pattern = r'```json\s*([\s\S]*?)\s*```'
+    #     json_match = re.search(json_pattern, text)
+    #     
+    #     if json_match:
+    #         json_str = json_match.group(1)
+    #         return DataProcessor.parse_json_safely(json_str)
+    #     
+    #     # 일반 텍스트에서 키-값 쌍 추출 시도
+    #     result = {}
+    #     
+    #     # 간단한 키-값 패턴 (예: "키: 값")
+    #     kv_pattern = r'([^:\n]+):\s*([^\n]+)'
+    #     for match in re.finditer(kv_pattern, text):
+    #         key = match.group(1).strip()
+    #         value = match.group(2).strip()
+    #         result[key] = value
+    #     
+    #     return result if result else None 

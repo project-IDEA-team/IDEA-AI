@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple, Any
 import logging
 from app.models.expert_type import ExpertType
 from app.service.openai_client import get_client
+from app.service.public_api.odcloud import get_disabled_job_seekers
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,20 @@ class SupervisorAgent:
             # 기본값: 상담 전문가
             if expert_type is None:
                 expert_type = ExpertType.COUNSELING
+            
+            # 예시: 키워드 기반 API 호출
+            latest_message = conversation[-1]["content"] if conversation else ""
+            if any(keyword in latest_message for keyword in ["장애인 구직자", "구직자 현황", "구직자 통계"]):
+                data = get_disabled_job_seekers()
+                cards = []
+                for item in data.get("data", []):
+                    cards.append({
+                        "id": str(item.get("연번")),
+                        "title": f"{item.get('희망직종', '직종 미상')} ({item.get('장애유형', '유형 미상')})",
+                        "summary": f"{item.get('희망지역', '지역 미상')} / {item.get('중증여부', '')}",
+                        "details": f"연령: {item.get('연령', '')}, 희망임금: {item.get('희망임금', '')}, 등록일: {item.get('구직등록일', '')}"
+                    })
+                return "장애인 구직자 현황 정보입니다.", cards
             
             return expert_type, keywords
             
