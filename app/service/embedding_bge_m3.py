@@ -1,26 +1,26 @@
-from openai import AsyncOpenAI
+from sentence_transformers import SentenceTransformer
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
-import asyncio
 
 load_dotenv()
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client["kead_db"]
 collection = db["policy_chunks"]
 
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# BGE-M3 모델 초기화
+model = SentenceTransformer('BAAI/bge-m3')
 
-async def get_embedding(text: str):
-    response = await openai_client.embeddings.create(
-        model="text-embedding-ada-002",
-        input=text
-    )
-    return response.data[0].embedding
+def get_embedding(text: str):
+    """
+    텍스트를 BGE-M3 모델을 사용하여 임베딩합니다.
+    """
+    return model.encode(text).tolist()
 
-print("💡 아직 임베딩되지 않은 문서 수:", collection.count_documents({"embedding": None}))
-
-async def fill_embeddings():
+def fill_embeddings():
+    """
+    임베딩이 없는 문서들에 대해 임베딩을 생성하고 저장합니다.
+    """
     chunks = collection.find({"embedding": None})
     for chunk in chunks:
         print("🔍 처리 중:", chunk["metadata"]["title"])
@@ -28,11 +28,7 @@ async def fill_embeddings():
         if not text.strip():
             continue
         try:
-            response = await openai_client.embeddings.create(
-                model="text-embedding-ada-002",
-                input=text
-            )
-            embedding = response.data[0].embedding
+            embedding = get_embedding(text)
             collection.update_one({"_id": chunk["_id"]}, {"$set": {"embedding": embedding}})
             print(f"✅ 임베딩 완료: {chunk['metadata']['title'][:30]}...")
         except Exception as e:
@@ -40,4 +36,4 @@ async def fill_embeddings():
             print(f"❌ 에러: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(fill_embeddings())
+    fill_embeddings() 

@@ -5,3 +5,7 @@ python-dotenv
 beautifulsoup4
 requests
 langchain
+sentence-transformers
+torch
+transformers
+numpy
