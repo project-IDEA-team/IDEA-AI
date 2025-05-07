@@ -170,6 +170,18 @@ class CounselingExpert(BaseExpert):
 # 챗봇 라우터에서 사용할 수 있도록 async 함수 추가
 counselor = CounselingExpert()
 
-async def counseling_response(query: str, conversation_history=None):
+async def counseling_response(query: str, keywords=None, conversation_history=None):
+    """
+    상담 전문가 응답 생성 함수
+    
+    Args:
+        query: 사용자 질문
+        keywords: 키워드 목록 (사용하지 않음)
+        conversation_history: 이전 대화 내용
+        
+    Returns:
+        응답 텍스트와 카드 목록
+    """
+    # keywords 매개변수는 무시하고 query와 conversation_history만 사용
     result = await counselor.process_query(query, conversation_history)
     return result["answer"], result["cards"] 

@@ -3,6 +3,7 @@ import logging
 from app.models.expert_type import ExpertType
 from app.service.experts.base_expert import BaseExpert
 from app.service.openai_client import get_client
+from app.service.public_api.api_manager import ApiManager
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class PolicyExpert(BaseExpert):
     def __init__(self):
         super().__init__(ExpertType.POLICY)
         self.client = get_client()
+        self.api_manager = ApiManager()
     
     def _get_system_prompt(self) -> str:
         return """
@@ -85,10 +87,47 @@ class PolicyExpert(BaseExpert):
         Returns:
             검색된 정책 카드 목록
         """
-        # TODO: 실제 데이터베이스 연동 구현
-        # 테스트용 더미 데이터
-        policy_cards = [
-            {
+        try:
+            # ApiManager를 통해 공공데이터 API에서 정책 정보 검색
+            policy_cards = await self.api_manager.search_by_keywords(keywords, "정책")
+            
+            # 검색 결과가 있으면 반환
+            if policy_cards:
+                return policy_cards
+                
+            # 검색 결과가 없는 경우 백업 데이터 활용
+            # 2차 시도: 권리 보장 관련 키워드가 있으면 장애인차별금지법 정보 제공
+            if any(kw in ["권리", "보장", "차별", "차별금지", "인권"] for kw in keywords):
+                return [{
+                    "id": "right-1",
+                    "title": "장애인차별금지 및 권리구제 등에 관한 법률",
+                    "subtitle": "장애인 권리 보장",
+                    "summary": "장애인이 사회에서 차별받지 않고 평등한 권리를 누릴 수 있도록 보호하는 법",
+                    "type": "policy",
+                    "details": (
+                        "법률명: 장애인차별금지 및 권리구제 등에 관한 법률\n"
+                        "시행일: 2008년 4월 11일\n"
+                        "주요내용:\n"
+                        "- 장애인에 대한 차별 금지 및 권리 구제\n"
+                        "- 장애인의 완전한 사회참여와 평등권 실현\n"
+                        "- 교육, 고용, 서비스 등 다양한 영역에서의 차별 금지\n"
+                        "신청방법: 차별 피해 시 국가인권위원회 또는 법원에 구제 신청 가능\n"
+                        "구제절차: 국가인권위원회 진정 → 조사/조정/권고 → 시정명령 → 이행강제금\n"
+                        "담당기관: 국가인권위원회, 보건복지부"
+                    ),
+                    "source": {
+                        "url": "https://www.humanrights.go.kr",
+                        "name": "국가인권위원회",
+                        "phone": "1331"
+                    },
+                    "buttons": [
+                        {"type": "link", "label": "자세히 보기", "value": "https://www.humanrights.go.kr"},
+                        {"type": "tel", "label": "인권상담전화", "value": "1331"}
+                    ]
+                }]
+            
+            # 최후 방안: 기본 장애인 복지 정책 정보 제공
+            return [{
                 "id": "policy1",
                 "title": "장애인연금제도",
                 "subtitle": "기초생활보장제도",
@@ -104,15 +143,36 @@ class PolicyExpert(BaseExpert):
                     {"type": "link", "label": "자세히 보기", "value": "https://www.mohw.go.kr"},
                     {"type": "tel", "label": "전화 문의", "value": "129"}
                 ]
-            }
-        ]
-        
-        # 정책 유형 필터링
-        if policy_type:
-            # 실제 구현에서는 정책 유형에 따라 필터링
-            pass
-        
-        return policy_cards
+            }]
+            
+        except Exception as e:
+            logger.error(f"정책 검색 중 오류 발생: {e}")
+            # 오류 발생 시 기본 데이터 반환
+            return [{
+                "id": "policy-error",
+                "title": "장애인 복지 정책 안내",
+                "subtitle": "종합 정보",
+                "summary": "장애인을 위한 주요 복지 정책 종합 안내",
+                "type": "policy",
+                "details": (
+                    "장애인을 위한 다양한 복지 정책이 있습니다:\n"
+                    "- 장애인연금 및 장애수당\n"
+                    "- 장애인 활동지원 서비스\n"
+                    "- 장애인 의료비 지원\n"
+                    "- 장애인 고용 지원\n"
+                    "- 장애인 교육 지원\n\n"
+                    "자세한 내용은 보건복지부 또는 주민센터에 문의하세요."
+                ),
+                "source": {
+                    "url": "https://www.mohw.go.kr",
+                    "name": "보건복지부",
+                    "phone": "129"
+                },
+                "buttons": [
+                    {"type": "link", "label": "자세히 보기", "value": "https://www.mohw.go.kr"},
+                    {"type": "tel", "label": "보건복지상담센터", "value": "129"}
+                ]
+            }]
     
     async def process_query(self, query: str, keywords: List[str] = None, conversation_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
         """
@@ -160,7 +220,7 @@ class PolicyExpert(BaseExpert):
             policy_titles = ", ".join([card["title"] for card in policy_cards[:3]])
             
             # 대화 이력을 LLM 메시지로 변환
-            messages = [{"role": "system", "content": self.system_prompt}]
+            messages = [{"role": "system", "content": self._get_system_prompt()}]
             
             # 이전 대화 내용이 있으면 메시지에 추가
             if conversation_history:
@@ -169,12 +229,12 @@ class PolicyExpert(BaseExpert):
                     content = msg.get("content", "")
                     if content.strip():  # 내용이 있는 메시지만 추가
                         messages.append({"role": role, "content": content})
-            else:
-                # 마지막 질문에 정책 정보 포함
-                messages.append({
-                    "role": "user", 
-                    "content": f"다음 질문에 대해 관련 정책 정보를 제공해주세요. 관련 정책: {policy_titles}\n\n질문: {query}"
-                })
+            
+            # 마지막 질문과 정책 정보 포함
+            messages.append({
+                "role": "user", 
+                "content": f"다음 질문에 대해 관련 정책 정보를 제공해주세요. 관련 정책: {policy_titles}\n\n질문: {query}"
+            })
             
             response = await self.client.chat.completions.create(
                 model="gpt-4.1-mini",
