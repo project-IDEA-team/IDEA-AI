@@ -2,7 +2,6 @@ from typing import Dict, List, Tuple, Any
 import logging
 from app.models.expert_type import ExpertType
 from app.service.openai_client import get_client
-from app.service.public_api.odcloud import get_disabled_job_seekers
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,6 @@ class SupervisorAgent:
             logger.info(f"슈퍼바이저 분석 결과: {result}")
             
             # JSON 파싱
-            import json
             parsed_result = json.loads(result)
             
             # 전문가 유형과 키워드 추출
@@ -76,18 +74,30 @@ class SupervisorAgent:
             if expert_type is None:
                 expert_type = ExpertType.COUNSELING
             
-            # 예시: 키워드 기반 API 호출
+            # 장애인 구직자 관련 데이터 요청 처리 (고정 데이터 반환)
             latest_message = conversation[-1]["content"] if conversation else ""
             if any(keyword in latest_message for keyword in ["장애인 구직자", "구직자 현황", "구직자 통계"]):
-                data = get_disabled_job_seekers()
-                cards = []
-                for item in data.get("data", []):
-                    cards.append({
-                        "id": str(item.get("연번")),
-                        "title": f"{item.get('희망직종', '직종 미상')} ({item.get('장애유형', '유형 미상')})",
-                        "summary": f"{item.get('희망지역', '지역 미상')} / {item.get('중증여부', '')}",
-                        "details": f"연령: {item.get('연령', '')}, 희망임금: {item.get('희망임금', '')}, 등록일: {item.get('구직등록일', '')}"
-                    })
+                # 고정된 샘플 데이터
+                cards = [
+                    {
+                        "id": "1",
+                        "title": "사무직 (지체장애)",
+                        "summary": "서울 / 중증",
+                        "details": "연령: 30대, 희망임금: 월 200만원 이상, 등록일: 2023-09-15"
+                    },
+                    {
+                        "id": "2",
+                        "title": "IT/프로그래머 (시각장애)",
+                        "summary": "경기 / 중증",
+                        "details": "연령: 20대, 희망임금: 월 250만원 이상, 등록일: 2023-10-01"
+                    },
+                    {
+                        "id": "3",
+                        "title": "콜센터 (청각장애)",
+                        "summary": "인천 / 경증",
+                        "details": "연령: 40대, 희망임금: 월 180만원 이상, 등록일: 2023-10-10"
+                    }
+                ]
                 return "장애인 구직자 현황 정보입니다.", cards
             
             return expert_type, keywords
@@ -111,12 +121,30 @@ class SupervisorAgent:
         
         # 단일 전문가 응답인 경우
         if len(expert_responses) == 1:
-            return expert_responses[0]
+            expert_response = expert_responses[0]
+            
+            # 기존 응답 형식 유지하면서 text/cards 키도 지원
+            result = {
+                "answer": expert_response.get("answer", expert_response.get("text", "")),
+                "cards": expert_response.get("cards", [])
+            }
+            
+            # text/cards 키 추가 (호환성 유지)
+            if "answer" in expert_response and "text" not in expert_response:
+                result["text"] = expert_response["answer"]
+                
+            return result
         
         # 여러 전문가 응답 종합
         try:
             # 응답 텍스트와 카드 수집
-            all_answers = [resp.get("answer", "") for resp in expert_responses if resp.get("answer")]
+            all_answers = []
+            for resp in expert_responses:
+                if "answer" in resp:
+                    all_answers.append(resp["answer"])
+                elif "text" in resp:
+                    all_answers.append(resp["text"])
+                    
             all_cards = []
             for resp in expert_responses:
                 if resp.get("cards"):
@@ -138,6 +166,7 @@ class SupervisorAgent:
             
             return {
                 "answer": consolidated_answer,
+                "text": consolidated_answer,  # 새로운 키 형식 지원
                 "cards": all_cards
             }
             
@@ -146,5 +175,15 @@ class SupervisorAgent:
             
             # 오류 발생 시 첫 번째 전문가 응답 반환
             if expert_responses:
-                return expert_responses[0]
-            return {"answer": "전문가 응답을 처리하는 중 오류가 발생했습니다.", "cards": []} 
+                expert_response = expert_responses[0]
+                answer = expert_response.get("answer", expert_response.get("text", ""))
+                return {
+                    "answer": answer,
+                    "text": answer,
+                    "cards": expert_response.get("cards", [])
+                }
+            return {
+                "answer": "전문가 응답을 처리하는 중 오류가 발생했습니다.",
+                "text": "전문가 응답을 처리하는 중 오류가 발생했습니다.",
+                "cards": []
+            } 

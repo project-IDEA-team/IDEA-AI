@@ -4,8 +4,11 @@ from typing import List, Dict, Any, Optional
 from app.service.experts import get_expert_response
 from app.service.agents.general_chatbot import GeneralChatbot
 from app.service.agents.supervisor import SupervisorAgent
+import logging
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 class ChatMessage(BaseModel):
     role: str

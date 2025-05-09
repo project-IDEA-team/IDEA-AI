@@ -3,7 +3,6 @@ import logging
 from app.models.expert_type import ExpertType
 from app.service.experts.base_expert import BaseExpert
 from app.service.openai_client import get_client
-from app.service.public_api.api_manager import ApiManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,7 @@ class WelfareExpert(BaseExpert):
     def __init__(self):
         super().__init__(ExpertType.WELFARE)
         self.client = get_client()
-        self.api_manager = ApiManager()
+        self.model = "gpt-4.1-mini"
     
     def _get_system_prompt(self) -> str:
         return """
@@ -97,144 +96,28 @@ class WelfareExpert(BaseExpert):
         Returns:
             검색된 복지 서비스 카드 목록
         """
-        try:
-            # ApiManager를 통해 공공데이터 API에서 복지 정보 검색
-            welfare_cards = await self.api_manager.search_by_keywords(keywords, "복지")
-            
-            # 검색 결과가 있으면 반환
-            if welfare_cards:
-                return welfare_cards
-                
-            # 검색 결과가 없는 경우 백업 데이터 활용
-            # 2차 시도: 연금/수당 관련 키워드가 있으면 장애인연금 정보 제공
-            if any(kw in ["연금", "수당", "급여", "지원금", "돈"] for kw in keywords):
-                return [{
-                    "id": "pension-1",
-                    "title": "장애인연금",
-                    "subtitle": "소득지원",
-                    "summary": "중증장애인의 생활 안정을 위한 소득지원 제도",
-                    "type": "welfare",
-                    "details": (
-                        "장애인연금은 중증장애인의 생활 안정을 위해 매월 일정 금액을 지급하는 제도입니다.\n\n"
-                        "지원대상:\n"
-                        "- 만 18세 이상의 등록 중증장애인\n"
-                        "- 본인과 배우자의 소득인정액이 선정기준액 이하인 자\n\n"
-                        "지원내용:\n"
-                        "- 기초급여: 월 최대 300,000원\n"
-                        "- 부가급여: 월 20,000원~380,000원(대상자별 차등)\n\n"
-                        "신청방법:\n"
-                        "- 주소지 관할 읍·면·동 주민센터 방문 신청\n"
-                        "- 복지로 홈페이지 온라인 신청\n\n"
-                        "구비서류:\n"
-                        "- 사회보장급여 신청서\n"
-                        "- 소득·재산 확인 서류\n"
-                        "- 통장 사본, 장애인 증명서 등"
-                    ),
-                    "source": {
-                        "url": "https://www.bokjiro.go.kr",
-                        "name": "복지로",
-                        "phone": "129"
-                    },
-                    "buttons": [
-                        {"type": "link", "label": "제도 안내", "value": "https://www.bokjiro.go.kr/pension"},
-                        {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-                    ]
-                }]
-            
-            # 3차 시도: 활동지원 관련 키워드가 있으면 활동지원 서비스 정보 제공
-            if any(kw in ["활동", "활동지원", "돌봄", "도움", "도우미"] for kw in keywords):
-                return [{
-                    "id": "activity-1",
-                    "title": "장애인 활동지원 서비스",
-                    "subtitle": "일상생활 지원",
-                    "summary": "장애인의 자립생활과 사회참여를 지원하는 서비스",
-                    "type": "welfare",
-                    "details": (
-                        "장애인 활동지원 서비스는 혼자서 일상생활과 사회활동이 어려운 장애인에게 활동지원사를 파견하여 지원하는 서비스입니다.\n\n"
-                        "지원대상:\n"
-                        "- 만 6세 이상 ~ 65세 미만 등록 장애인\n"
-                        "- 활동지원 신청조사표에 의한 방문조사 결과 220점 이상인 자\n\n"
-                        "지원내용:\n"
-                        "- 신체활동 지원: 목욕, 식사, 세면, 옷 갈아입기 등\n"
-                        "- 가사활동 지원: 청소, 세탁, 식사 준비 등\n"
-                        "- 사회활동 지원: 외출, 쇼핑, 여가활동, 직장생활 등\n"
-                        "- 방문목욕, 방문간호 등\n\n"
-                        "신청방법:\n"
-                        "- 주소지 관할 읍·면·동 주민센터 방문 신청\n\n"
-                        "본인부담금: 소득수준에 따라 차등 부과"
-                    ),
-                    "source": {
-                        "url": "https://www.bokjiro.go.kr",
-                        "name": "복지로",
-                        "phone": "129"
-                    },
-                    "buttons": [
-                        {"type": "link", "label": "서비스 안내", "value": "https://www.bokjiro.go.kr/activity-support"},
-                        {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-                    ]
-                }]
-            
-            # 감면혜택 관련 키워드가 있으면 감면혜택 정보 제공
-            if any(kw in ["감면", "할인", "혜택", "요금", "공제"] for kw in keywords):
-                return [{
-                    "id": "discount-1",
-                    "title": "장애인 감면혜택",
-                    "subtitle": "요금 감면 및 할인",
-                    "summary": "장애인을 위한 각종 요금 감면 및 할인 혜택",
-                    "type": "welfare",
-                    "details": (
-                        "장애인을 위한 다양한 감면 및 할인 혜택이 있습니다.\n\n"
-                        "교통 관련:\n"
-                        "- 철도: 1~3급 장애인 본인 및 보호자 1인 50% 할인\n"
-                        "- 항공: 국내선 50% 할인(중증), 30% 할인(경증)\n"
-                        "- 고속버스: 50% 할인(중증), 30% 할인(경증)\n"
-                        "- 자동차: 자동차세, 등록세, LPG 연료 사용 허용 등\n\n"
-                        "문화생활:\n"
-                        "- 국립공원, 고궁, 박물관 무료 입장\n"
-                        "- 영화관, 공연장 할인\n\n"
-                        "통신 요금:\n"
-                        "- 이동통신 기본료 및 통화료 35% 할인\n"
-                        "- 인터넷, 유선전화 등 감면\n\n"
-                        "공과금:\n"
-                        "- 전기요금: 월 최대 16,000원 할인\n"
-                        "- 상하수도 요금 감면\n"
-                        "- TV 수신료 면제 등"
-                    ),
-                    "source": {
-                        "url": "https://www.bokjiro.go.kr",
-                        "name": "복지로",
-                        "phone": "129"
-                    },
-                    "buttons": [
-                        {"type": "link", "label": "감면혜택 안내", "value": "https://www.bokjiro.go.kr/discount"},
-                        {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-                    ]
-                }]
-            
-            # 최후 방안: 기본 장애인 복지 서비스 정보 제공
+        if any(kw in ["연금", "수당", "급여", "지원금", "돈"] for kw in keywords):
             return [{
-                "id": "welfare-1",
-                "title": "장애인 복지 서비스 종합 안내",
-                "subtitle": "복지서비스",
-                "summary": "장애인을 위한 다양한 복지 서비스 안내",
+                "id": "pension-1",
+                "title": "장애인연금",
+                "subtitle": "소득지원",
+                "summary": "중증장애인의 생활 안정을 위한 소득지원 제도",
                 "type": "welfare",
                 "details": (
-                    "장애인을 위한 주요 복지 서비스 안내입니다.\n\n"
-                    "경제적 지원:\n"
-                    "- 장애인연금, 장애수당, 장애아동수당\n"
-                    "- 의료비 지원, 보조기기 지원\n"
-                    "- 각종 세제 혜택 및 요금 감면\n\n"
-                    "일상생활 지원:\n"
-                    "- 장애인 활동지원 서비스\n"
-                    "- 장애아 가족 양육 지원\n"
-                    "- 발달장애인 주간활동 서비스\n"
-                    "- 보조기기 지원 및 대여\n\n"
-                    "주거 지원:\n"
-                    "- 주택 특별공급\n"
-                    "- 주거환경 개선 사업\n\n"
-                    "시설 이용:\n"
-                    "- 장애인복지관, 주간보호시설\n"
-                    "- 단기보호시설, 공동생활가정(그룹홈) 등"
+                    "장애인연금은 중증장애인의 생활 안정을 위해 매월 일정 금액을 지급하는 제도입니다.\n\n"
+                    "지원대상:\n"
+                    "- 만 18세 이상의 등록 중증장애인\n"
+                    "- 본인과 배우자의 소득인정액이 선정기준액 이하인 자\n\n"
+                    "지원내용:\n"
+                    "- 기초급여: 월 최대 300,000원\n"
+                    "- 부가급여: 월 20,000원~380,000원(대상자별 차등)\n\n"
+                    "신청방법:\n"
+                    "- 주소지 관할 읍·면·동 주민센터 방문 신청\n"
+                    "- 복지로 홈페이지 온라인 신청\n\n"
+                    "구비서류:\n"
+                    "- 사회보장급여 신청서\n"
+                    "- 소득·재산 확인 서류\n"
+                    "- 통장 사본, 장애인 증명서 등"
                 ),
                 "source": {
                     "url": "https://www.bokjiro.go.kr",
@@ -242,28 +125,31 @@ class WelfareExpert(BaseExpert):
                     "phone": "129"
                 },
                 "buttons": [
-                    {"type": "link", "label": "자세히 보기", "value": "https://www.bokjiro.go.kr"},
+                    {"type": "link", "label": "제도 안내", "value": "https://www.bokjiro.go.kr/pension"},
                     {"type": "tel", "label": "보건복지상담센터", "value": "129"}
                 ]
             }]
-            
-        except Exception as e:
-            logger.error(f"복지 서비스 검색 중 오류 발생: {e}")
-            # 오류 발생 시 기본 데이터 반환
+        
+        if any(kw in ["활동", "활동지원", "돌봄", "도움", "도우미"] for kw in keywords):
             return [{
-                "id": "welfare-error",
-                "title": "장애인 복지 서비스 안내",
-                "subtitle": "복지 안내",
-                "summary": "장애인을 위한 주요 복지 서비스 안내",
+                "id": "activity-1",
+                "title": "장애인 활동지원 서비스",
+                "subtitle": "일상생활 지원",
+                "summary": "장애인의 자립생활과 사회참여를 지원하는 서비스",
                 "type": "welfare",
                 "details": (
-                    "장애인을 위한 다양한 복지 서비스가 있습니다:\n"
-                    "- 장애인연금 및 장애수당\n"
-                    "- 장애인 활동지원 서비스\n"
-                    "- 장애인 보조기기 지원\n"
-                    "- 각종 감면 및 할인 혜택\n"
-                    "- 주거 및 교육 지원 등\n\n"
-                    "자세한 내용은 보건복지부 또는 주민센터에 문의하세요."
+                    "장애인 활동지원 서비스는 혼자서 일상생활과 사회활동이 어려운 장애인에게 활동지원사를 파견하여 지원하는 서비스입니다.\n\n"
+                    "지원대상:\n"
+                    "- 만 6세 이상 ~ 65세 미만 등록 장애인\n"
+                    "- 활동지원 신청조사표에 의한 방문조사 결과 220점 이상인 자\n\n"
+                    "지원내용:\n"
+                    "- 신체활동 지원: 목욕, 식사, 세면, 옷 갈아입기 등\n"
+                    "- 가사활동 지원: 청소, 세탁, 식사 준비 등\n"
+                    "- 사회활동 지원: 외출, 쇼핑, 여가활동, 직장생활 등\n"
+                    "- 방문목욕, 방문간호 등\n\n"
+                    "신청방법:\n"
+                    "- 주소지 관할 읍·면·동 주민센터 방문 신청\n\n"
+                    "본인부담금: 소득수준에 따라 차등 부과"
                 ),
                 "source": {
                     "url": "https://www.bokjiro.go.kr",
@@ -271,14 +157,78 @@ class WelfareExpert(BaseExpert):
                     "phone": "129"
                 },
                 "buttons": [
-                    {"type": "link", "label": "복지서비스 안내", "value": "https://www.bokjiro.go.kr"},
+                    {"type": "link", "label": "서비스 안내", "value": "https://www.bokjiro.go.kr/activity-support"},
                     {"type": "tel", "label": "보건복지상담센터", "value": "129"}
                 ]
             }]
+        
+        if any(kw in ["감면", "할인", "혜택", "요금", "공제"] for kw in keywords):
+            return [{
+                "id": "discount-1",
+                "title": "장애인 감면혜택",
+                "subtitle": "요금 감면 및 할인",
+                "summary": "장애인을 위한 각종 요금 감면 및 할인 혜택",
+                "type": "welfare",
+                "details": (
+                    "장애인을 위한 다양한 감면 및 할인 혜택이 있습니다.\n\n"
+                    "교통 관련:\n"
+                    "- 철도: 1~3급 장애인 본인 및 보호자 1인 50% 할인\n"
+                    "- 항공: 국내선 50% 할인(중증), 30% 할인(경증)\n"
+                    "- 고속버스: 50% 할인(중증), 30% 할인(경증)\n"
+                    "- 자동차: 자동차세, 등록세, LPG 연료 사용 허용 등\n\n"
+                    "문화생활:\n"
+                    "- 국립공원, 고궁, 박물관 무료 입장\n"
+                    "- 영화관, 공연장 할인\n\n"
+                    "통신 요금:\n"
+                    "- 이동통신 기본료 및 통화료 35% 할인\n"
+                    "- 인터넷, 유선전화 등 감면\n\n"
+                    "공과금:\n"
+                    "- 전기요금: 월 최대 16,000원 할인\n"
+                    "- 상하수도 요금 감면\n"
+                    "- TV 수신료 면제(시청각 장애인)"
+                ),
+                "source": {
+                    "url": "https://www.bokjiro.go.kr",
+                    "name": "복지로",
+                    "phone": "129"
+                },
+                "buttons": [
+                    {"type": "link", "label": "자세히 보기", "value": "https://www.bokjiro.go.kr/discount"},
+                    {"type": "tel", "label": "보건복지상담센터", "value": "129"}
+                ]
+            }]
+        
+        return [{
+            "id": "welfare-general",
+            "title": "장애인 복지 서비스 안내",
+            "subtitle": "복지 정보",
+            "summary": "장애인을 위한 다양한 복지 서비스 종합 안내",
+            "type": "welfare",
+            "details": (
+                "장애인을 위한 주요 복지 서비스 안내입니다:\n\n"
+                "1. 장애인연금 및 장애수당\n"
+                "2. 장애인 활동지원 서비스\n"
+                "3. 장애인 보조기기 지원\n"
+                "4. 장애인 주택 특별공급\n"
+                "5. 장애인 감면 및 할인 혜택\n"
+                "6. 장애인 의료 및 재활 지원\n"
+                "7. 장애아동 가족 지원\n\n"
+                "자세한 내용은 가까운 주민센터나 보건복지상담센터(129)로 문의하세요."
+            ),
+            "source": {
+                "url": "https://www.bokjiro.go.kr",
+                "name": "복지로",
+                "phone": "129"
+            },
+            "buttons": [
+                {"type": "link", "label": "복지로 홈페이지", "value": "https://www.bokjiro.go.kr"},
+                {"type": "tel", "label": "보건복지상담센터", "value": "129"}
+            ]
+        }]
     
     async def process_query(self, query: str, keywords: List[str] = None, conversation_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
         """
-        사용자 쿼리를 처리하고 응답을 반환합니다.
+        사용자 쿼리를 처리하고 응답을 생성합니다.
         
         Args:
             query: 사용자 쿼리
@@ -286,96 +236,69 @@ class WelfareExpert(BaseExpert):
             conversation_history: 이전 대화 내용
             
         Returns:
-            응답 및 복지 서비스 카드 정보
+            응답 정보
         """
         try:
-            # 대화 기록이 없는 경우 기본값 설정
-            if conversation_history is None:
-                conversation_history = []
-                
-            # 키워드가 없는 경우 쿼리에서 추출
-            if not keywords:
-                extraction_response = await self.client.chat.completions.create(
-                    model="gpt-4.1-mini",
-                    messages=[
-                        {"role": "system", "content": "사용자의 질문에서 장애인 복지 서비스 검색에 필요한 핵심 키워드를 5개 이내로 추출해주세요."},
-                        {"role": "user", "content": query}
-                    ],
-                    temperature=0.3
-                )
-                
-                import json
-                # 응답이 JSON 형식이 아닐 수 있으므로 처리
-                try:
-                    keywords_data = json.loads(extraction_response.choices[0].message.content)
-                    keywords = keywords_data.get("keywords", [])
-                except json.JSONDecodeError:
-                    # 일반 텍스트에서 키워드 추출 시도
-                    content = extraction_response.choices[0].message.content
-                    possible_keywords = [k.strip() for k in content.split(',')]
-                    keywords = [k for k in possible_keywords if k]
+            messages = self._prepare_messages(query, conversation_history)
             
-            # 복지 서비스 정보 검색
+            if not keywords:
+                keywords = []
+            
             welfare_cards = await self.search_welfare_services(keywords)
             
-            # 검색 결과 기반 응답 생성
-            service_titles = ", ".join([card["title"] for card in welfare_cards[:3]])
-            
-            # 대화 이력을 LLM 메시지로 변환
-            messages = [{"role": "system", "content": self._get_system_prompt()}]
-            
-            # 이전 대화 내용이 있으면 메시지에 추가
-            if conversation_history:
-                for msg in conversation_history:
-                    role = msg.get("role", "user")
-                    content = msg.get("content", "")
-                    if content.strip():  # 내용이 있는 메시지만 추가
-                        messages.append({"role": role, "content": content})
-            
-            # 마지막 질문과 복지 서비스 정보 포함
-            messages.append({
-                "role": "user", 
-                "content": f"다음 질문에 대해 관련 복지 서비스 정보를 제공해주세요. 관련 서비스: {service_titles}\n\n질문: {query}"
-            })
-            
             response = await self.client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model=self.model,
                 messages=messages,
-                temperature=0.7
+                temperature=0.7,
+                response_format={"type": "text"},
+                seed=42
             )
             
-            answer = response.choices[0].message.content
+            response_text = response.choices[0].message.content.strip()
             
             return {
-                "answer": answer,
+                "text": response_text,
                 "cards": welfare_cards
             }
             
         except Exception as e:
-            logger.error(f"복지 전문가 응답 생성 중 오류 발생: {e}")
+            logger.error(f"응답 생성 중 오류 발생: {str(e)}")
             return {
-                "answer": "죄송합니다. 현재 복지 서비스 정보를 제공하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+                "text": "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다. 다시 시도해 주세요.",
                 "cards": []
             }
     
+    def _prepare_messages(self, query: str, conversation_history: List[Dict[str, str]] = None) -> List[Dict[str, str]]:
+        messages = [{"role": "system", "content": self._get_system_prompt()}]
+        
+        if conversation_history:
+            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+            for msg in recent_history:
+                if msg.get("role") and msg.get("content"):
+                    messages.append({"role": msg["role"], "content": msg["content"]})
+        
+        messages.append({"role": "user", "content": query})
+        
+        return messages
+    
     def _get_description(self) -> str:
-        return "복지 제도, 감면혜택, 활동지원 서비스 안내"
+        return "장애인 복지 서비스, 혜택 등에 대한 정보를 제공합니다."
     
     def _get_icon(self) -> str:
-        return "🏠"
+        return "🏥"
 
 async def welfare_response(query: str, keywords: List[str] = None, conversation_history=None) -> tuple:
     """
-    복지 전문가 응답을 생성합니다.
+    복지 전문가 AI 응답 생성 함수
     
     Args:
         query: 사용자 쿼리
         keywords: 키워드 목록
-        conversation_history: 이전 대화 내용
+        conversation_history: 대화 이력
         
     Returns:
-        응답 텍스트와 복지 서비스 카드 목록
+        (응답 텍스트, 정보 카드 목록)
     """
     expert = WelfareExpert()
     response = await expert.process_query(query, keywords, conversation_history)
-    return response["answer"], response["cards"] 
+    return response.get("text", ""), response.get("cards", []) 
