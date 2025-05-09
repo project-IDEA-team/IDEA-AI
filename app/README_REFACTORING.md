@@ -9,6 +9,7 @@
 1. FastAPI 백엔드를 '챗봇 전용' 백엔드로 유지
 2. 모든 공공데이터 API 호출 관련 코드 제거 또는 비활성화
 3. Java Spring Boot 백엔드로 이전할 코드 명확히 식별
+4. 크롤링 코드를 별도 마이크로서비스로 분리 준비
 
 ## 주요 변경사항
 
@@ -28,22 +29,17 @@
 - 대화 이력 처리를 위한 _prepare_messages 메서드 추가
 - 응답 형식 통일 (text, cards 키 사용)
 
-#### 변경된 전문가 파일:
-- `service/experts/__init__.py` - API 관련 로직 제거
-- `service/experts/employment_expert.py` - 취업 전문가
-- `service/experts/welfare_expert.py` - 복지 전문가
-- `service/experts/policy_expert.py` - 정책 전문가
-- `service/experts/startup_expert.py` - 창업 전문가
-- `service/experts/medical_expert.py` - 의료 전문가
-- `service/experts/education_expert.py` - 교육 전문가
-- `service/experts/counseling_expert.py` - 상담 전문가
+### 4. 크롤링 관련 코드 (scripts/*)
+- 크롤링 스크립트를 scripts/ 디렉토리로 이동
+- MongoDB 연동 코드 분리
+- 향후 별도 마이크로서비스로 분리 예정
 
-### 4. MongoDB 연동 코드 (service/mongodb.py)
+### 5. MongoDB 연동 코드 (service/mongodb.py)
 - 더 이상 사용하지 않음을 나타내는 주석 추가
 - 실제 데이터베이스 연결 비활성화
 
-### 5. 공공데이터 API 관련 파일
-- `service/public_api/__init__.py`에 DEPRECATED 주석 추가
+### 6. 공공데이터 API 관련 파일
+- `service/public_api/` 디렉토리 전체를 Java Spring Boot로 이전 예정
 - `service/public_api/MIGRATION.md` 파일 추가 - 마이그레이션 가이드
 - `app/MIGRATION_PLAN.md` 파일 추가 - 전체 마이그레이션 계획
 
@@ -55,10 +51,15 @@
                     |
                     v
             [Java Spring Boot 백엔드] <--> [공공데이터 API들]
+                    ^
+                    |
+                    v
+            [Python 크롤링 마이크로서비스] <--> [MongoDB]
 ```
 
 - **FastAPI 백엔드**: OpenAI와 연동하여 AI 챗봇 기능만 담당
 - **Java Spring Boot 백엔드**: 공공데이터 API 호출 및 데이터 처리 담당
+- **Python 크롤링 마이크로서비스**: 데이터 수집 및 MongoDB 저장 담당
 
 ## 완료된 작업
 
@@ -72,6 +73,11 @@
    - 각 전문 분야에 맞는 기본 정보 카드 준비
    - API 호출 없이도 유용한 정보 제공
 
+3. 크롤링 코드 구조화
+   - scripts/ 디렉토리로 이동
+   - 독립적인 실행 환경 구성
+   - MongoDB 연동 코드 분리
+
 ## 추가 작업 필요사항
 
 1. 테스트 및 검증
@@ -79,4 +85,7 @@
    - 응답 품질 유지 여부 검증
 
 2. Java Spring Boot 백엔드 구현
-   - 상세 구현 방법은 `app/service/public_api/MIGRATION.md` 참조 
+   - 상세 구현 방법은 `app/service/public_api/MIGRATION.md` 참조
+
+3. 크롤링 마이크로서비스 분리
+   - 상세 계획은 `app/CRAWLING_ARCHITECTURE.md` 참조 
