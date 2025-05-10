@@ -6,6 +6,7 @@ from app.service.tools.counseling_tools import CounselingTools
 from app.service.openai_client import get_client
 import re
 import json
+from app.service.experts.common_form.example_cards import COUNSELING_CARD_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,25 @@ class CounselingExpert(BaseExpert):
     def _get_system_prompt(self) -> str:
         return """
 당신은 장애인 전문 상담사입니다. 심리 상담, 진로 상담, 가족 상담 등 다양한 상담 서비스를 제공합니다.
+
+모든 정보 카드는 반드시 아래와 같은 JSON 형식으로 만들어 주세요.
+{
+  "id": "string",
+  "title": "string",
+  "subtitle": "string",
+  "summary": "string",
+  "type": "string",
+  "details": "string",
+  "source": {
+    "url": "string",
+    "name": "string",
+    "phone": "string"
+  },
+  "buttons": [
+    {"type": "link", "label": "string", "value": "string"},
+    {"type": "tel", "label": "string", "value": "string"}
+  ]
+}
 
 응답 스타일:
 1. 항상 **따뜻하고 공감적인 톤**으로 응답하세요. 사용자의 감정과 상황에 공감하는 표현을 반드시 포함하세요.
@@ -48,8 +68,151 @@ class CounselingExpert(BaseExpert):
                 "name": "get_emergency_contacts",
                 "description": "긴급 상담 연락처를 제공합니다.",
                 "parameters": {}
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_counseling_services",
+                    "description": "장애인 상담 서비스 정보를 검색합니다.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "keywords": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "검색 키워드 목록"
+                            },
+                            "service_type": {
+                                "type": "string",
+                                "description": "상담 서비스 유형"
+                            },
+                            "disability_type": {
+                                "type": "string",
+                                "description": "장애 유형"
+                            },
+                            "region": {
+                                "type": "string",
+                                "description": "지역 정보"
+                            }
+                        },
+                        "required": ["keywords"]
+                    }
+                }
             }
         ]
+
+    async def search_counseling_services(self, keywords: List[str], service_type: str = None, disability_type: str = None, region: str = None) -> List[Dict[str, Any]]:
+        """
+        상담 서비스 정보를 검색합니다.
+        
+        Args:
+            keywords: 검색 키워드 목록
+            service_type: 서비스 유형
+            disability_type: 장애 유형
+            region: 지역 정보
+            
+        Returns:
+            상담 서비스 정보 카드 목록
+        """
+        try:
+            # 실제 DB/API 검색 로직 구현 필요
+            cards = []
+            
+            # 검색 결과 없으면 fallback 카드
+            if not cards:
+                cards = [{
+                    "id": "counseling-general",
+                    "title": "장애인 상담 서비스 안내",
+                    "subtitle": "상담 정보",
+                    "summary": "장애인을 위한 다양한 상담 서비스 종합 안내",
+                    "type": "counseling",
+                    "details": "검색 결과가 없습니다. 가까운 장애인복지관이나 상담센터에 문의하세요.",
+                    "source": {
+                        "url": "https://www.129.go.kr",
+                        "name": "보건복지상담센터",
+                        "phone": "129"
+                    },
+                    "buttons": [
+                        {"type": "link", "label": "복지포털 홈페이지", "value": "https://www.129.go.kr"},
+                        {"type": "tel", "label": "상담 문의", "value": "129"}
+                    ]
+                }]
+            return cards
+            
+        except Exception as e:
+            logger.error(f"상담 서비스 검색 중 오류 발생: {str(e)}")
+            return [COUNSELING_CARD_TEMPLATE]
+
+    async def _search_counseling_info(self, query: str, keywords: List[str]) -> Dict[str, Any]:
+        """
+        상담 정보를 검색하고 응답을 생성합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 검색 키워드 목록
+            
+        Returns:
+            응답 딕셔너리 (text, cards)
+        """
+        try:
+            # 상담 정보 카드 검색
+            counseling_cards = await self.search_counseling_services(keywords)
+            
+            # 각 카드의 형식 수정
+            formatted_cards = []
+            for card in counseling_cards:
+                # 카드 제목은 상담 서비스명 사용
+                card["title"] = card.get("title", "상담 정보")
+                
+                # 요약은 한 줄로 제한
+                summary = card.get("summary", "")
+                if len(summary) > 50:  # 요약은 50자로 제한
+                    summary = summary[:47] + "..."
+                card["summary"] = summary
+                
+                # 버튼에 실제 링크 추가
+                if "source" in card and "url" in card["source"]:
+                    card["buttons"] = [
+                        {
+                            "type": "link",
+                            "label": "자세히 보기",
+                            "value": card["source"]["url"]
+                        }
+                    ]
+                    # 전화번호가 있으면 전화 버튼 추가
+                    if "phone" in card["source"] and card["source"]["phone"]:
+                        card["buttons"].append({
+                            "type": "tel",
+                            "label": "전화 상담",
+                            "value": card["source"]["phone"]
+                        })
+                
+                formatted_cards.append(card)
+            
+            # 응답 텍스트 생성
+            response_text = "안녕하세요! 문의하신 상담 정보를 알려드리겠습니다.\n\n"
+            
+            # 각 카드의 핵심 정보를 텍스트에 추가
+            for card in formatted_cards:
+                response_text += f"• {card['title']}\n"
+                response_text += f"{card['summary']}\n"
+                if "source" in card and "phone" in card["source"]:
+                    response_text += f"문의: {card['source']['name']} ({card['source']['phone']})\n"
+                response_text += "\n"
+            
+            return {
+                "text": response_text.strip(),
+                "cards": formatted_cards
+            }
+            
+        except Exception as e:
+            logger.error(f"상담 정보 검색 중 오류 발생: {str(e)}")
+            return {
+                "text": "죄송합니다. 상담 정보를 검색하는 중에 문제가 발생했습니다.",
+                "cards": [COUNSELING_CARD_TEMPLATE]
+            }
 
     async def process_query(self, query: str, keywords: List[str] = None, conversation_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
         """
@@ -64,115 +227,77 @@ class CounselingExpert(BaseExpert):
             응답 정보
         """
         try:
-            # 이전 대화 이력을 처리하고 메시지 배열 생성
-            messages = self._prepare_messages(query, conversation_history)
+            # 검색 키워드 추출
+            search_keywords = self._extract_search_keywords(query, keywords)
+            logger.debug(f"추출된 검색 키워드: {search_keywords}")
             
-            # 기본적인 인사 처리
-            if any(greeting in query for greeting in ["안녕", "반가워", "시작"]):
-                return {
-                    "text": "안녕하세요. 장애인 상담 전문가입니다. 어떤 도움이 필요하신가요?",
-                    "cards": []
-                }
-    
-            # 상담 센터 검색
-            if "상담" in query and "센터" in query:
-                centers = await self.tools.search_counseling_centers(query)
-                return {
-                    "text": "장애인 상담 센터 정보를 찾아보았습니다.",
-                    "cards": centers
-                }
-    
-            # 긴급 상담
-            if any(word in query for word in ["긴급", "위기", "도움"]):
-                contacts = await self.tools.get_emergency_contacts()
-                return {
-                    "text": "긴급 상담이 필요하시군요. 아래 연락처로 즉시 연락하실 수 있습니다.",
-                    "cards": contacts
-                }
+            # 상담 정보 검색
+            response = await self._search_counseling_info(query, search_keywords)
             
-            # LLM 응답 생성
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1000
-            )
+            # 응답 검증 및 수정
+            validated_response = self.validate_response(response)
             
-            # 응답 텍스트 추출
-            response_text = response.choices[0].message.content.strip()
-            
-            # 정보 카드 부분과 응답 텍스트 분리
-            parts = response_text.split('###정보 카드')
-            answer = parts[0].strip()
-            cards = []
-            
-            # 카드 정보 추출
-            if len(parts) > 1:
-                card_text = parts[1].strip()
-                # JSON 형식의 카드 정보 추출
-                json_match = re.search(r'\[(.*?)\]', card_text, re.DOTALL)
-                if json_match:
-                    try:
-                        # 리스트 형태로 파싱
-                        card_json = f"[{json_match.group(1)}]"
-                        cards = json.loads(card_json)
-                    except json.JSONDecodeError:
-                        logger.error(f"카드 JSON 파싱 실패: {card_text}")
-                        # 기본 카드 추가
-                        cards = [{
-                            "id": "no_data",
-                            "title": "관련 정보를 찾을 수 없습니다",
-                            "subtitle": "",
-                            "summary": "요청하신 조건에 맞는 정보를 찾지 못했습니다.",
-                            "type": "info",
-                            "details": "다른 질문을 해주시거나, 상담원에게 문의해 주세요.",
-                            "source": {}
-                        }]
-            
-            # 카드가 없으면 기본 상담 정보 카드 제공
-            if not cards:
-                cards = [{
-                    "id": "counseling-info-1",
-                    "title": "장애인 심리상담 서비스",
-                    "subtitle": "심리상담",
-                    "summary": "장애인과 가족을 위한 심리상담 지원 서비스",
-                    "type": "counseling",
-                    "details": (
-                        "장애인 심리상담 서비스 안내:\n\n"
-                        "1. 장애인복지관 심리상담 서비스\n"
-                        "- 개인 및 집단상담, 가족상담, 심리검사 등\n"
-                        "- 가까운 장애인복지관에 문의\n\n"
-                        "2. 정신건강복지센터\n"
-                        "- 지역별 센터에서 정신건강 관련 무료 상담 및 지원\n"
-                        "- 전화: 1577-0199\n\n"
-                        "3. 온라인 상담 서비스\n"
-                        "- 한국장애인재단 '마음톡톡': 온라인 심리상담\n"
-                        "- 장애인먼저실천운동본부: 온라인 법률/생활/복지 상담"
-                    ),
-                    "source": {
-                        "url": "https://www.kawid.or.kr",
-                        "name": "한국장애인재활협회",
-                        "phone": "02-3472-3556"
-                    },
-                    "buttons": [
-                        {"type": "link", "label": "자세히 보기", "value": "https://www.kawid.or.kr"},
-                        {"type": "tel", "label": "전화 문의", "value": "02-3472-3556"}
-                    ]
-                }]
-            
-            # 최종 응답 생성
-            return {
-                "text": answer,
-                "cards": cards
-            }
+            return validated_response
             
         except Exception as e:
             logger.error(f"응답 생성 중 오류 발생: {str(e)}")
             return {
                 "text": "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다. 다시 시도해 주세요.",
-                "cards": []
+                "cards": [{**COUNSELING_CARD_TEMPLATE, "details": "시스템 오류로 정보를 불러올 수 없습니다."}]
             }
-    
+
+    def _extract_search_keywords(self, query: str, keywords: List[str] = None) -> List[str]:
+        """
+        검색에 사용할 키워드를 추출합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 슈퍼바이저가 제공한 키워드 목록
+            
+        Returns:
+            검색 키워드 목록
+        """
+        try:
+            # 1. 기본 키워드 (장애인, 상담)
+            base_keywords = ["장애인", "상담"]
+            
+            # 2. 슈퍼바이저가 제공한 키워드가 있으면 사용
+            if keywords and isinstance(keywords, list):
+                valid_keywords = [kw for kw in keywords if isinstance(kw, str)]
+                if valid_keywords:
+                    return base_keywords + valid_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            # 3. 쿼리에서 직접 키워드 추출
+            query_keywords = []
+            
+            # 주요 키워드 패턴
+            key_patterns = [
+                r"장애인\s+(\w+)",  # "장애인 상담" -> "상담"
+                r"(\w+)\s+상담",    # "심리 상담" -> "심리"
+                r"(\w+)\s+치료",    # "우울증 치료" -> "우울증"
+                r"(\w+)\s+문제",    # "가족 문제" -> "가족"
+                r"(\w+)\s+적응"     # "사회 적응" -> "사회"
+            ]
+            
+            import re
+            for pattern in key_patterns:
+                matches = re.findall(pattern, query)
+                query_keywords.extend(matches)
+            
+            # 중복 제거 및 정제
+            query_keywords = list(set(query_keywords))
+            query_keywords = [kw.strip() for kw in query_keywords if len(kw.strip()) > 1]
+            
+            # 최종 키워드 조합 (기본 키워드 + 쿼리 키워드)
+            final_keywords = base_keywords + query_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            logger.info(f"최종 검색 키워드: {final_keywords}")
+            return final_keywords
+            
+        except Exception as e:
+            logger.error(f"키워드 추출 중 오류 발생: {str(e)}")
+            return ["장애인", "상담"]  # 오류 발생 시 기본 키워드만 반환
+
     def _prepare_messages(self, query: str, conversation_history: List[Dict[str, str]] = None) -> List[Dict[str, str]]:
         """대화 이력을 처리하여 메시지 배열을 생성합니다."""
         messages = [{"role": "system", "content": self._get_system_prompt()}]
@@ -190,6 +315,19 @@ class CounselingExpert(BaseExpert):
         
         return messages
 
+    def _format_card(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """카드 데이터를 공통 포맷으로 변환"""
+        return {
+            "id": data.get("id", COUNSELING_CARD_TEMPLATE["id"]),
+            "title": data.get("title", COUNSELING_CARD_TEMPLATE["title"]),
+            "subtitle": data.get("subtitle", COUNSELING_CARD_TEMPLATE["subtitle"]),
+            "summary": data.get("summary", COUNSELING_CARD_TEMPLATE["summary"]),
+            "type": data.get("type", COUNSELING_CARD_TEMPLATE["type"]),
+            "details": data.get("details", COUNSELING_CARD_TEMPLATE["details"]),
+            "source": data.get("source", COUNSELING_CARD_TEMPLATE["source"]),
+            "buttons": data.get("buttons", COUNSELING_CARD_TEMPLATE["buttons"])
+        }
+
     def _get_description(self) -> str:
         return "장애인과 가족을 위한 심리 상담 및 정서 지원 서비스를 제공합니다."
     
@@ -197,7 +335,7 @@ class CounselingExpert(BaseExpert):
         return "💬"  # 상담 아이콘 
 
 # 챗봇 라우터에서 사용할 수 있도록 async 함수 추가
-async def counseling_response(query: str, keywords=None, conversation_history=None) -> tuple:
+async def counseling_response(query: str, keywords: List[str] = None, conversation_history: List[Dict[str, str]] = None) -> tuple:
     """
     상담 전문가 AI 응답 생성 함수
     

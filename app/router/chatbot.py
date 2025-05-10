@@ -138,7 +138,8 @@ async def process_conversation(
         expert_response = await get_expert_response(
             latest_message, 
             expert_type.value,
-            req.messages
+            keywords,  # keywords를 세 번째 매개변수로 이동
+            req.messages  # conversation_history를 네 번째 매개변수로 이동
         )
         
         # 응답 종합

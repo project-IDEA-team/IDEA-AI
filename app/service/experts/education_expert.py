@@ -3,6 +3,7 @@ import logging
 from app.models.expert_type import ExpertType
 from app.service.experts.base_expert import BaseExpert
 from app.service.openai_client import get_client
+from app.service.experts.common_form.example_cards import EDUCATION_CARD_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,25 @@ class EducationExpert(BaseExpert):
         return """
         너는 장애인 교육 전문가 AI입니다. 
         장애인 교육 지원 제도, 특수교육, 학습 프로그램 등에 대한 정확하고 유용한 정보를 제공해야 합니다.
+        
+        모든 정보 카드는 반드시 아래와 같은 JSON 형식으로 만들어 주세요.
+        {
+          "id": "string",
+          "title": "string",
+          "subtitle": "string",
+          "summary": "string",
+          "type": "string",
+          "details": "string",
+          "source": {
+            "url": "string",
+            "name": "string",
+            "phone": "string"
+          },
+          "buttons": [
+            {"type": "link", "label": "string", "value": "string"},
+            {"type": "tel", "label": "string", "value": "string"}
+          ]
+        }
         
         제공할 정보 범위:
         - 특수교육 제도 및 지원
@@ -84,242 +104,186 @@ class EducationExpert(BaseExpert):
         ]
     
     async def search_education_information(self, keywords: List[str], education_type: str = None, disability_type: str = None, region: str = None) -> List[Dict[str, Any]]:
-        """
-        키워드, 교육 유형, 장애 유형, 지역 등을 기반으로 교육 정보를 검색합니다.
-        API 호출 대신 기본 데이터를 반환합니다.
-        
-        Args:
-            keywords: 검색 키워드 목록
-            education_type: 교육 유형
-            disability_type: 장애 유형
-            region: 지역 정보
-            
-        Returns:
-            검색된 교육 정보 카드 목록
-        """
-        # 특수교육 관련 키워드가 있으면 특수교육 정보 제공
-        if any(kw in ["특수교육", "특수학교", "통합교육", "개별화", "IEP"] for kw in keywords):
-            return [{
-                "id": "special-education-1",
-                "title": "특수교육 지원 제도",
-                "subtitle": "특수교육",
-                "summary": "장애학생을 위한 특수교육 제도 및 지원 서비스 안내",
-                "type": "education",
-                "details": (
-                    "특수교육 지원 제도는 장애가 있는 학생에게 적합한 교육환경과 서비스를 제공하는 제도입니다.\n\n"
-                    "주요 내용:\n"
-                    "- 특수교육대상자 선정: 교육지원청 특수교육지원센터의 진단·평가 후 특수교육운영위원회 심의를 거쳐 선정\n"
-                    "- 개별화교육계획(IEP): 학생의 능력과 특성에 맞는 맞춤형 교육 계획 수립 및 실행\n"
-                    "- 교육환경: 특수학교, 특수학급, 일반학급 통합교육 등 다양한 배치 옵션\n"
-                    "- 관련서비스: 상담지원, 가족지원, 치료지원, 보조인력 지원, 보조공학기기 지원 등\n"
-                    "- 순회교육: 이동이 불편한 장애학생을 위한 교사 방문 교육\n\n"
-                    "신청방법: 거주지 교육지원청 특수교육지원센터에 문의 및 신청"
-                ),
-                "source": {
-                    "url": "https://www.nise.go.kr",
-                    "name": "국립특수교육원",
-                    "phone": "041-537-1500"
-                },
-                "buttons": [
-                    {"type": "link", "label": "특수교육 안내", "value": "https://www.nise.go.kr"},
-                    {"type": "tel", "label": "국립특수교육원", "value": "041-537-1500"}
-                ]
-            }]
-        
-        # 장학금/교육비 관련 키워드가 있으면 교육비 지원 정보 제공
-        if any(kw in ["장학금", "교육비", "학비", "지원금", "바우처"] for kw in keywords):
-            return [{
-                "id": "education-cost-1",
-                "title": "장애학생 교육비 지원",
-                "subtitle": "교육비 지원",
-                "summary": "장애학생의 교육비 부담 경감을 위한 다양한 지원 제도",
-                "type": "education",
-                "details": (
-                    "장애학생을 위한 다양한 교육비 지원 제도입니다.\n\n"
-                    "대표적인 지원 제도:\n"
-                    "- 특수교육대상자 의무교육: 유치원~고등학교 과정 무상교육 제공\n"
-                    "- 장애인 대학생 도우미 지원: 대학 생활 지원 인력 제공\n"
-                    "- 장애대학생 교육활동 지원: 교재제작, 보조기기 대여 등\n"
-                    "- 장애인 평생교육 바우처: 연간 35만원 이내 평생교육 비용 지원\n"
-                    "- 발달재활서비스: 만 18세 미만 장애아동 대상 월 14~22만원 지원\n"
-                    "- 장애인 정보화교육: 무료 정보화 교육 제공\n\n"
-                    "신청방법: 각 지원별로 상이하므로 해당 기관에 문의\n"
-                    "- 특수교육: 교육지원청 특수교육지원센터\n"
-                    "- 대학지원: 각 대학 장애학생지원센터\n"
-                    "- 평생교육바우처: 국가평생교육진흥원"
-                ),
-                "source": {
-                    "url": "https://www.nise.go.kr",
-                    "name": "국립특수교육원",
-                    "phone": "041-537-1500"
-                },
-                "buttons": [
-                    {"type": "link", "label": "지원제도 안내", "value": "https://www.nise.go.kr/main.do?s=nise"},
-                    {"type": "tel", "label": "문의전화", "value": "041-537-1500"}
-                ]
-            }]
-        
-        # 평생교육 관련 키워드가 있으면 평생교육 정보 제공
-        if any(kw in ["평생교육", "성인교육", "평생", "평생학습", "사회교육"] for kw in keywords):
-            return [{
-                "id": "lifelong-education-1",
-                "title": "장애인 평생교육 지원",
-                "subtitle": "평생교육",
-                "summary": "성인 장애인의 지속적인 교육과 역량 개발을 위한 평생교육 프로그램",
-                "type": "education",
-                "details": (
-                    "장애인 평생교육은 학령기 이후 성인 장애인의 지속적인 교육과 사회참여를 지원하는 프로그램입니다.\n\n"
-                    "주요 프로그램:\n"
-                    "- 학력보완교육: 문해교육, 학력취득 과정\n"
-                    "- 직업능력교육: 직업 기초 및 응용 기술 교육\n"
-                    "- 문화예술교육: 음악, 미술, 체육 등 예술 활동\n"
-                    "- 인문교양교육: 독서, 역사, 철학 등 교양 강좌\n"
-                    "- 시민참여교육: 시민의식, 사회참여 활동\n\n"
-                    "주요 기관:\n"
-                    "- 장애인 평생교육시설\n"
-                    "- 지역 평생학습관\n"
-                    "- 대학 부설 평생교육원\n"
-                    "- 장애인복지관 평생교육 프로그램\n\n"
-                    "평생교육 바우처: 저소득 장애인 대상 연간 35만원 이내 평생교육 비용 지원"
-                ),
-                "source": {
-                    "url": "https://www.nile.or.kr",
-                    "name": "국가평생교육진흥원",
-                    "phone": "02-3780-9700"
-                },
-                "buttons": [
-                    {"type": "link", "label": "평생교육 안내", "value": "https://www.nile.or.kr"},
-                    {"type": "tel", "label": "국가평생교육진흥원", "value": "02-3780-9700"}
-                ]
-            }]
-        
-        # 기본 장애인 교육 정보 제공
-        return [{
-            "id": "education-info-1",
-            "title": "장애인 교육 지원 종합 안내",
-            "subtitle": "교육 지원",
-            "summary": "장애인을 위한 다양한 교육 지원 제도 및 서비스 안내",
-            "type": "education",
-            "details": (
-                "장애인을 위한 주요 교육 지원 제도 및 서비스 안내입니다.\n\n"
-                "유·초·중등교육:\n"
-                "- 특수교육 지원(특수학교, 특수학급, 통합학급)\n"
-                "- 개별화교육계획(IEP) 수립 및 운영\n"
-                "- 특수교육 관련서비스(치료지원, 보조인력 등)\n"
-                "- 학습보조기기 지원\n\n"
-                "고등·평생교육:\n"
-                "- 장애대학생 교육활동 지원\n"
-                "- 장애인 평생교육 프로그램\n"
-                "- 장애인 정보화교육\n\n"
-                "교육비 지원:\n"
-                "- 특수교육대상자 의무교육 지원\n"
-                "- 장애대학생 장학금 지원\n"
-                "- 평생교육 바우처 지원"
-            ),
-            "source": {
-                "url": "https://www.nise.go.kr",
-                "name": "국립특수교육원",
-                "phone": "041-537-1500"
-            },
-            "buttons": [
-                {"type": "link", "label": "자세히 보기", "value": "https://www.nise.go.kr"},
-                {"type": "tel", "label": "국립특수교육원", "value": "041-537-1500"}
-            ]
-        }]
+        # 실제 DB/툴/외부API 호출로 대체 필요. 여기서는 fallback만 예시로 사용
+        # 예시: DB에서 검색, 없으면 fallback
+        # results = await self.db.search_education_by_keywords(keywords)
+        results = []  # 실제 구현 시 DB/API 결과로 대체
+        if results:
+            return [self._format_card(r) for r in results]
+        # fallback: 최소 안내 카드만 반환
+        return [{**EDUCATION_CARD_TEMPLATE, "details": "검색 결과가 없습니다. 가까운 교육지원센터에 문의하세요."}]
 
-    async def process_query(self, query: str, keywords: List[str] = None, conversation_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
+    async def _search_education_info(self, query: str, keywords: List[str]) -> Dict[str, Any]:
         """
-        사용자 쿼리를 처리하고 적절한 응답을 생성합니다.
+        교육 정보를 검색하고 응답을 생성합니다.
         
         Args:
             query: 사용자 쿼리
             keywords: 검색 키워드 목록
-            conversation_history: 대화 이력
             
         Returns:
-            응답 정보
+            응답 딕셔너리 (text, cards)
         """
         try:
-            # 이전 대화 이력을 처리하고 메시지 배열 생성
-            messages = self._prepare_messages(query, conversation_history)
+            # 교육 정보 카드 검색
+            education_cards = await self.search_education_information(keywords)
             
-            # 추출된 키워드가 없는 경우 빈 리스트로 초기화
-            if not keywords:
-                keywords = []
+            # 각 카드의 형식 수정
+            formatted_cards = []
+            for card in education_cards:
+                # 카드 제목은 교육 프로그램명 사용
+                card["title"] = card.get("title", "교육 정보")
+                
+                # 요약은 한 줄로 제한
+                summary = card.get("summary", "")
+                if len(summary) > 50:  # 요약은 50자로 제한
+                    summary = summary[:47] + "..."
+                card["summary"] = summary
+                
+                # 버튼에 실제 링크 추가
+                if "source" in card and "url" in card["source"]:
+                    card["buttons"] = [
+                        {
+                            "type": "link",
+                            "label": "자세히 보기",
+                            "value": card["source"]["url"]
+                        }
+                    ]
+                    # 전화번호가 있으면 전화 버튼 추가
+                    if "phone" in card["source"] and card["source"]["phone"]:
+                        card["buttons"].append({
+                            "type": "tel",
+                            "label": "전화 문의",
+                            "value": card["source"]["phone"]
+                        })
+                
+                formatted_cards.append(card)
             
-            # 기본 교육 정보 카드
-            education_cards = [{
-                "id": "education-info-general",
-                "title": "장애인 교육 지원 정보",
-                "subtitle": "교육 지원",
-                "summary": "장애인을 위한 주요 교육 지원 제도 안내",
-                "type": "education",
-                "details": (
-                    "장애인을 위한 주요 교육 지원 제도:\n\n"
-                    "1. 특수교육 지원 제도\n"
-                    "- 특수교육대상자로 선정된 장애학생에게 무상교육 제공\n"
-                    "- 개별화교육계획(IEP) 수립 및 실행\n"
-                    "- 문의: 각 지역 교육지원청 특수교육지원센터\n\n"
-                    "2. 장애대학생 교육활동 지원 사업\n"
-                    "- 도우미 지원, 학습보조기기 지원 등\n"
-                    "- 문의: 각 대학 장애학생지원센터\n\n"
-                    "3. 장애인 평생교육 지원\n"
-                    "- 장애인 평생교육시설, 복지관 등에서 다양한 프로그램 운영\n"
-                    "- 평생교육 바우처 지원 제도 활용 가능\n"
-                    "- 문의: 국가평생교육진흥원 02-3780-9700"
-                ),
-                "source": {
-                    "url": "https://www.nise.go.kr",
-                    "name": "국립특수교육원",
-                    "phone": "041-537-1500"
-                },
-                "buttons": [
-                    {"type": "link", "label": "자세히 보기", "value": "https://www.nise.go.kr"},
-                    {"type": "tel", "label": "국립특수교육원", "value": "041-537-1500"}
-                ]
-            }]
+            # 응답 텍스트 생성
+            response_text = "안녕하세요! 문의하신 교육 정보를 알려드리겠습니다.\n\n"
             
-            # LLM 응답 생성
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.7,
-                response_format={"type": "text"},
-                seed=42
-            )
+            # 각 카드의 핵심 정보를 텍스트에 추가
+            for card in formatted_cards:
+                response_text += f"• {card['title']}\n"
+                response_text += f"{card['summary']}\n"
+                if "source" in card and "phone" in card["source"]:
+                    response_text += f"문의: {card['source']['name']} ({card['source']['phone']})\n"
+                response_text += "\n"
             
-            # 응답 텍스트 추출
-            response_text = response.choices[0].message.content.strip()
-            
-            # 최종 응답 생성
             return {
-                "text": response_text,
-                "cards": education_cards
+                "text": response_text.strip(),
+                "cards": formatted_cards
             }
             
         except Exception as e:
-            logger.error(f"응답 생성 중 오류 발생: {str(e)}")
+            logger.error(f"교육 정보 검색 중 오류 발생: {str(e)}")
             return {
-                "text": "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다. 다시 시도해 주세요.",
-                "cards": []
+                "text": "죄송합니다. 교육 정보를 검색하는 중에 문제가 발생했습니다.",
+                "cards": [EDUCATION_CARD_TEMPLATE]
             }
+
+    async def process_query(self, query: str, keywords: List[str] = None, conversation_history=None) -> Dict[str, Any]:
+        """
+        사용자 쿼리를 처리하고 응답을 생성합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 슈퍼바이저가 추출한 키워드 목록
+            conversation_history: 대화 이력
+            
+        Returns:
+            응답 딕셔너리 (text, cards)
+        """
+        try:
+            # 검색 키워드 추출
+            search_keywords = self._extract_search_keywords(query, keywords)
+            logger.debug(f"추출된 검색 키워드: {search_keywords}")
+            
+            # 교육 정보 검색
+            response = await self._search_education_info(query, search_keywords)
+            
+            # 응답 검증 및 수정
+            validated_response = self.validate_response(response)
+            
+            return validated_response
+            
+        except Exception as e:
+            logger.error(f"교육 전문가 응답 생성 중 오류 발생: {e}", exc_info=True)
+            return {"text": "죄송합니다. 응답을 생성하는 중 문제가 발생했습니다.", "cards": []}
+
+    def _extract_search_keywords(self, query: str, keywords: List[str] = None) -> List[str]:
+        """
+        검색에 사용할 키워드를 추출합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 슈퍼바이저가 추출한 키워드 목록
+            
+        Returns:
+            검색 키워드 목록
+        """
+        try:
+            # 1. 기본 키워드 (장애인, 교육)
+            base_keywords = ["장애인", "교육"]
+            
+            # 2. 슈퍼바이저가 제공한 키워드가 있으면 사용
+            if keywords and isinstance(keywords, list):
+                valid_keywords = [kw for kw in keywords if isinstance(kw, str)]
+                if valid_keywords:
+                    return base_keywords + valid_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            # 3. 쿼리에서 직접 키워드 추출
+            query_keywords = []
+            
+            # 주요 키워드 패턴
+            key_patterns = [
+                r"장애인\s+(\w+)",  # "장애인 교육" -> "교육"
+                r"(\w+)\s+교육",    # "직업 교육" -> "직업"
+                r"(\w+)\s+과정",    # "취업 과정" -> "취업"
+                r"(\w+)\s+프로그램",  # "재활 프로그램" -> "재활"
+                r"(\w+)\s+훈련"     # "직업 훈련" -> "직업"
+            ]
+            
+            import re
+            for pattern in key_patterns:
+                matches = re.findall(pattern, query)
+                query_keywords.extend(matches)
+            
+            # 중복 제거 및 정제
+            query_keywords = list(set(query_keywords))
+            query_keywords = [kw.strip() for kw in query_keywords if len(kw.strip()) > 1]
+            
+            # 최종 키워드 조합 (기본 키워드 + 쿼리 키워드)
+            final_keywords = base_keywords + query_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            logger.info(f"최종 검색 키워드: {final_keywords}")
+            return final_keywords
+            
+        except Exception as e:
+            logger.error(f"키워드 추출 중 오류 발생: {str(e)}")
+            return ["장애인", "교육"]  # 오류 발생 시 기본 키워드만 반환
     
     def _prepare_messages(self, query: str, conversation_history: List[Dict[str, str]] = None) -> List[Dict[str, str]]:
-        """대화 이력을 처리하여 메시지 배열을 생성합니다."""
         messages = [{"role": "system", "content": self._get_system_prompt()}]
-        
-        # 대화 이력이 있는 경우 추가
         if conversation_history:
-            # 너무 긴 이력은 최근 5개만 사용
             recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
             for msg in recent_history:
                 if msg.get("role") and msg.get("content"):
                     messages.append({"role": msg["role"], "content": msg["content"]})
-        
-        # 현재 쿼리 추가
         messages.append({"role": "user", "content": query})
-        
         return messages
+    
+    def _format_card(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": data.get("id", EDUCATION_CARD_TEMPLATE["id"]),
+            "title": data.get("title", EDUCATION_CARD_TEMPLATE["title"]),
+            "subtitle": data.get("subtitle", EDUCATION_CARD_TEMPLATE["subtitle"]),
+            "summary": data.get("summary", EDUCATION_CARD_TEMPLATE["summary"]),
+            "type": data.get("type", EDUCATION_CARD_TEMPLATE["type"]),
+            "details": data.get("details", EDUCATION_CARD_TEMPLATE["details"]),
+            "source": data.get("source", EDUCATION_CARD_TEMPLATE["source"]),
+            "buttons": data.get("buttons", EDUCATION_CARD_TEMPLATE["buttons"])
+        }
     
     def _get_description(self) -> str:
         return "장애인 교육 지원, 특수 교육, 교육 프로그램 등에 대한 정보를 제공합니다."
@@ -328,17 +292,6 @@ class EducationExpert(BaseExpert):
         return "🎓"
 
 async def education_response(query: str, keywords: List[str] = None, conversation_history=None) -> tuple:
-    """
-    교육 전문가 AI 응답 생성 함수
-    
-    Args:
-        query: 사용자 쿼리
-        keywords: 키워드 목록
-        conversation_history: 대화 이력
-        
-    Returns:
-        (응답 텍스트, 정보 카드 목록)
-    """
     expert = EducationExpert()
     response = await expert.process_query(query, keywords, conversation_history)
     return response.get("text", ""), response.get("cards", []) 

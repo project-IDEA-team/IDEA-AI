@@ -2,6 +2,7 @@ from typing import Dict, List, Tuple, Any
 import logging
 from app.models.expert_type import ExpertType
 from app.service.openai_client import get_client
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -132,19 +133,27 @@ class SupervisorAgent:
             # text/cards 키 추가 (호환성 유지)
             if "answer" in expert_response and "text" not in expert_response:
                 result["text"] = expert_response["answer"]
-                
+            
+            # action 필드가 있으면 포함
+            if "action" in expert_response:
+                result["action"] = expert_response["action"]
+            
             return result
         
         # 여러 전문가 응답 종합
         try:
             # 응답 텍스트와 카드 수집
             all_answers = []
+            action_field = None
             for resp in expert_responses:
                 if "answer" in resp:
                     all_answers.append(resp["answer"])
                 elif "text" in resp:
                     all_answers.append(resp["text"])
-                    
+                # action 필드가 있는 첫 번째 응답의 action을 저장
+                if not action_field and "action" in resp:
+                    action_field = resp["action"]
+            
             all_cards = []
             for resp in expert_responses:
                 if resp.get("cards"):
@@ -164,11 +173,15 @@ class SupervisorAgent:
             
             consolidated_answer = response.choices[0].message.content
             
-            return {
+            result = {
                 "answer": consolidated_answer,
                 "text": consolidated_answer,  # 새로운 키 형식 지원
                 "cards": all_cards
             }
+            # action 필드가 있으면 포함
+            if action_field:
+                result["action"] = action_field
+            return result
             
         except Exception as e:
             logger.error(f"응답 종합 중 오류 발생: {e}")

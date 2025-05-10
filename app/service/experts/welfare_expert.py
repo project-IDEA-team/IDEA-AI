@@ -3,6 +3,7 @@ import logging
 from app.models.expert_type import ExpertType
 from app.service.experts.base_expert import BaseExpert
 from app.service.openai_client import get_client
+from app.service.experts.common_form.example_cards import WELFARE_CARD_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,25 @@ class WelfareExpert(BaseExpert):
         return """
         너는 장애인 복지 전문가 AI입니다. 
         장애인 복지 제도, 서비스, 혜택 등에 대한 정확하고 유용한 정보를 제공해야 합니다.
+        
+        모든 정보 카드는 반드시 아래와 같은 JSON 형식으로 만들어 주세요.
+        {
+          "id": "string",
+          "title": "string",
+          "subtitle": "string",
+          "summary": "string",
+          "type": "string",
+          "details": "string",
+          "source": {
+            "url": "string",
+            "name": "string",
+            "phone": "string"
+          },
+          "buttons": [
+            {"type": "link", "label": "string", "value": "string"},
+            {"type": "tel", "label": "string", "value": "string"}
+          ]
+        }
         
         제공할 정보 범위:
         - 장애인 등록 및 장애 판정
@@ -85,201 +105,217 @@ class WelfareExpert(BaseExpert):
     
     async def search_welfare_services(self, keywords: List[str], service_type: str = None, disability_type: str = None, region: str = None) -> List[Dict[str, Any]]:
         """
-        키워드, 서비스 유형, 장애 유형, 지역 등을 기반으로 복지 서비스 정보를 검색합니다.
+        복지 서비스 정보를 검색합니다.
         
         Args:
             keywords: 검색 키워드 목록
-            service_type: 복지 서비스 유형
+            service_type: 서비스 유형
             disability_type: 장애 유형
             region: 지역 정보
             
         Returns:
-            검색된 복지 서비스 카드 목록
+            복지 서비스 정보 카드 목록
         """
-        if any(kw in ["연금", "수당", "급여", "지원금", "돈"] for kw in keywords):
-            return [{
-                "id": "pension-1",
-                "title": "장애인연금",
-                "subtitle": "소득지원",
-                "summary": "중증장애인의 생활 안정을 위한 소득지원 제도",
-                "type": "welfare",
-                "details": (
-                    "장애인연금은 중증장애인의 생활 안정을 위해 매월 일정 금액을 지급하는 제도입니다.\n\n"
-                    "지원대상:\n"
-                    "- 만 18세 이상의 등록 중증장애인\n"
-                    "- 본인과 배우자의 소득인정액이 선정기준액 이하인 자\n\n"
-                    "지원내용:\n"
-                    "- 기초급여: 월 최대 300,000원\n"
-                    "- 부가급여: 월 20,000원~380,000원(대상자별 차등)\n\n"
-                    "신청방법:\n"
-                    "- 주소지 관할 읍·면·동 주민센터 방문 신청\n"
-                    "- 복지로 홈페이지 온라인 신청\n\n"
-                    "구비서류:\n"
-                    "- 사회보장급여 신청서\n"
-                    "- 소득·재산 확인 서류\n"
-                    "- 통장 사본, 장애인 증명서 등"
-                ),
-                "source": {
-                    "url": "https://www.bokjiro.go.kr",
-                    "name": "복지로",
-                    "phone": "129"
-                },
-                "buttons": [
-                    {"type": "link", "label": "제도 안내", "value": "https://www.bokjiro.go.kr/pension"},
-                    {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-                ]
-            }]
+        try:
+            # 실제 DB/API 검색 로직 구현 필요
+            cards = []
+            
+            # 검색 결과 없으면 fallback 카드
+            if not cards:
+                cards = [{
+                    "id": "welfare-general",
+                    "title": "장애인 복지 서비스 안내",
+                    "subtitle": "복지 정보",
+                    "summary": "장애인을 위한 다양한 복지 서비스 종합 안내",
+                    "type": "welfare",
+                    "details": "검색 결과가 없습니다. 가까운 주민센터나 복지로(129)로 문의하세요.",
+                    "source": {
+                        "url": "https://www.bokjiro.go.kr",
+                        "name": "복지로",
+                        "phone": "129"
+                    },
+                    "buttons": [
+                        {"type": "link", "label": "복지로 홈페이지", "value": "https://www.bokjiro.go.kr"},
+                        {"type": "tel", "label": "보건복지상담센터", "value": "129"}
+                    ]
+                }]
+            return cards
+            
+        except Exception as e:
+            logger.error(f"복지 서비스 검색 중 오류 발생: {str(e)}")
+            return [WELFARE_CARD_TEMPLATE]
+
+    async def _search_welfare_info(self, query: str, keywords: List[str]) -> Dict[str, Any]:
+        """
+        복지 정보를 검색하고 응답을 생성합니다.
         
-        if any(kw in ["활동", "활동지원", "돌봄", "도움", "도우미"] for kw in keywords):
-            return [{
-                "id": "activity-1",
-                "title": "장애인 활동지원 서비스",
-                "subtitle": "일상생활 지원",
-                "summary": "장애인의 자립생활과 사회참여를 지원하는 서비스",
-                "type": "welfare",
-                "details": (
-                    "장애인 활동지원 서비스는 혼자서 일상생활과 사회활동이 어려운 장애인에게 활동지원사를 파견하여 지원하는 서비스입니다.\n\n"
-                    "지원대상:\n"
-                    "- 만 6세 이상 ~ 65세 미만 등록 장애인\n"
-                    "- 활동지원 신청조사표에 의한 방문조사 결과 220점 이상인 자\n\n"
-                    "지원내용:\n"
-                    "- 신체활동 지원: 목욕, 식사, 세면, 옷 갈아입기 등\n"
-                    "- 가사활동 지원: 청소, 세탁, 식사 준비 등\n"
-                    "- 사회활동 지원: 외출, 쇼핑, 여가활동, 직장생활 등\n"
-                    "- 방문목욕, 방문간호 등\n\n"
-                    "신청방법:\n"
-                    "- 주소지 관할 읍·면·동 주민센터 방문 신청\n\n"
-                    "본인부담금: 소득수준에 따라 차등 부과"
-                ),
-                "source": {
-                    "url": "https://www.bokjiro.go.kr",
-                    "name": "복지로",
-                    "phone": "129"
-                },
-                "buttons": [
-                    {"type": "link", "label": "서비스 안내", "value": "https://www.bokjiro.go.kr/activity-support"},
-                    {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-                ]
-            }]
-        
-        if any(kw in ["감면", "할인", "혜택", "요금", "공제"] for kw in keywords):
-            return [{
-                "id": "discount-1",
-                "title": "장애인 감면혜택",
-                "subtitle": "요금 감면 및 할인",
-                "summary": "장애인을 위한 각종 요금 감면 및 할인 혜택",
-                "type": "welfare",
-                "details": (
-                    "장애인을 위한 다양한 감면 및 할인 혜택이 있습니다.\n\n"
-                    "교통 관련:\n"
-                    "- 철도: 1~3급 장애인 본인 및 보호자 1인 50% 할인\n"
-                    "- 항공: 국내선 50% 할인(중증), 30% 할인(경증)\n"
-                    "- 고속버스: 50% 할인(중증), 30% 할인(경증)\n"
-                    "- 자동차: 자동차세, 등록세, LPG 연료 사용 허용 등\n\n"
-                    "문화생활:\n"
-                    "- 국립공원, 고궁, 박물관 무료 입장\n"
-                    "- 영화관, 공연장 할인\n\n"
-                    "통신 요금:\n"
-                    "- 이동통신 기본료 및 통화료 35% 할인\n"
-                    "- 인터넷, 유선전화 등 감면\n\n"
-                    "공과금:\n"
-                    "- 전기요금: 월 최대 16,000원 할인\n"
-                    "- 상하수도 요금 감면\n"
-                    "- TV 수신료 면제(시청각 장애인)"
-                ),
-                "source": {
-                    "url": "https://www.bokjiro.go.kr",
-                    "name": "복지로",
-                    "phone": "129"
-                },
-                "buttons": [
-                    {"type": "link", "label": "자세히 보기", "value": "https://www.bokjiro.go.kr/discount"},
-                    {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-                ]
-            }]
-        
-        return [{
-            "id": "welfare-general",
-            "title": "장애인 복지 서비스 안내",
-            "subtitle": "복지 정보",
-            "summary": "장애인을 위한 다양한 복지 서비스 종합 안내",
-            "type": "welfare",
-            "details": (
-                "장애인을 위한 주요 복지 서비스 안내입니다:\n\n"
-                "1. 장애인연금 및 장애수당\n"
-                "2. 장애인 활동지원 서비스\n"
-                "3. 장애인 보조기기 지원\n"
-                "4. 장애인 주택 특별공급\n"
-                "5. 장애인 감면 및 할인 혜택\n"
-                "6. 장애인 의료 및 재활 지원\n"
-                "7. 장애아동 가족 지원\n\n"
-                "자세한 내용은 가까운 주민센터나 보건복지상담센터(129)로 문의하세요."
-            ),
-            "source": {
-                "url": "https://www.bokjiro.go.kr",
-                "name": "복지로",
-                "phone": "129"
-            },
-            "buttons": [
-                {"type": "link", "label": "복지로 홈페이지", "value": "https://www.bokjiro.go.kr"},
-                {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-            ]
-        }]
-    
-    async def process_query(self, query: str, keywords: List[str] = None, conversation_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
+        Args:
+            query: 사용자 쿼리
+            keywords: 검색 키워드 목록
+            
+        Returns:
+            응답 딕셔너리 (text, cards)
+        """
+        try:
+            # 복지 정보 카드 검색
+            welfare_cards = await self.search_welfare_services(keywords)
+            
+            # 각 카드의 형식 수정
+            formatted_cards = []
+            for card in welfare_cards:
+                # 카드 제목은 복지 서비스명 사용
+                card["title"] = card.get("title", "복지 정보")
+                
+                # 요약은 한 줄로 제한
+                summary = card.get("summary", "")
+                if len(summary) > 50:  # 요약은 50자로 제한
+                    summary = summary[:47] + "..."
+                card["summary"] = summary
+                
+                # 버튼에 실제 링크 추가
+                if "source" in card and "url" in card["source"]:
+                    card["buttons"] = [
+                        {
+                            "type": "link",
+                            "label": "자세히 보기",
+                            "value": card["source"]["url"]
+                        }
+                    ]
+                    # 전화번호가 있으면 전화 버튼 추가
+                    if "phone" in card["source"] and card["source"]["phone"]:
+                        card["buttons"].append({
+                            "type": "tel",
+                            "label": "전화 문의",
+                            "value": card["source"]["phone"]
+                        })
+                
+                formatted_cards.append(card)
+            
+            # 응답 텍스트 생성
+            response_text = "안녕하세요! 문의하신 복지 정보를 알려드리겠습니다.\n\n"
+            
+            # 각 카드의 핵심 정보를 텍스트에 추가
+            for card in formatted_cards:
+                response_text += f"• {card['title']}\n"
+                response_text += f"{card['summary']}\n"
+                if "source" in card and "phone" in card["source"]:
+                    response_text += f"문의: {card['source']['name']} ({card['source']['phone']})\n"
+                response_text += "\n"
+            
+            return {
+                "text": response_text.strip(),
+                "cards": formatted_cards
+            }
+            
+        except Exception as e:
+            logger.error(f"복지 정보 검색 중 오류 발생: {str(e)}")
+            return {
+                "text": "죄송합니다. 복지 정보를 검색하는 중에 문제가 발생했습니다.",
+                "cards": [WELFARE_CARD_TEMPLATE]
+            }
+
+    async def process_query(self, query: str, keywords: List[str] = None, conversation_history=None) -> Dict[str, Any]:
         """
         사용자 쿼리를 처리하고 응답을 생성합니다.
         
         Args:
             query: 사용자 쿼리
             keywords: 슈퍼바이저가 추출한 키워드 목록
-            conversation_history: 이전 대화 내용
+            conversation_history: 대화 이력
             
         Returns:
-            응답 정보
+            응답 딕셔너리 (text, cards)
         """
         try:
-            messages = self._prepare_messages(query, conversation_history)
+            # 검색 키워드 추출
+            search_keywords = self._extract_search_keywords(query, keywords)
+            logger.debug(f"추출된 검색 키워드: {search_keywords}")
             
-            if not keywords:
-                keywords = []
+            # 복지 정보 검색
+            response = await self._search_welfare_info(query, search_keywords)
             
-            welfare_cards = await self.search_welfare_services(keywords)
+            # 응답 검증 및 수정
+            validated_response = self.validate_response(response)
             
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.7,
-                response_format={"type": "text"},
-                seed=42
-            )
-            
-            response_text = response.choices[0].message.content.strip()
-            
-            return {
-                "text": response_text,
-                "cards": welfare_cards
-            }
+            return validated_response
             
         except Exception as e:
-            logger.error(f"응답 생성 중 오류 발생: {str(e)}")
-            return {
-                "text": "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다. 다시 시도해 주세요.",
-                "cards": []
-            }
+            logger.error(f"복지 전문가 응답 생성 중 오류 발생: {e}", exc_info=True)
+            return {"text": "죄송합니다. 응답을 생성하는 중 문제가 발생했습니다.", "cards": []}
+
+    def _extract_search_keywords(self, query: str, keywords: List[str] = None) -> List[str]:
+        """
+        검색에 사용할 키워드를 추출합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 슈퍼바이저가 제공한 키워드 목록
+            
+        Returns:
+            검색 키워드 목록
+        """
+        try:
+            # 1. 기본 키워드 (장애인, 복지)
+            base_keywords = ["장애인", "복지"]
+            
+            # 2. 슈퍼바이저가 제공한 키워드가 있으면 사용
+            if keywords and isinstance(keywords, list):
+                valid_keywords = [kw for kw in keywords if isinstance(kw, str)]
+                if valid_keywords:
+                    return base_keywords + valid_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            # 3. 쿼리에서 직접 키워드 추출
+            query_keywords = []
+            
+            # 주요 키워드 패턴
+            key_patterns = [
+                r"장애인\s+(\w+)",  # "장애인 복지" -> "복지"
+                r"(\w+)\s+지원",    # "생활비 지원" -> "생활비"
+                r"(\w+)\s+혜택",    # "세금 혜택" -> "세금"
+                r"(\w+)\s+서비스",  # "활동 서비스" -> "활동"
+                r"(\w+)\s+수당"     # "장애 수당" -> "장애"
+            ]
+            
+            import re
+            for pattern in key_patterns:
+                matches = re.findall(pattern, query)
+                query_keywords.extend(matches)
+            
+            # 중복 제거 및 정제
+            query_keywords = list(set(query_keywords))
+            query_keywords = [kw.strip() for kw in query_keywords if len(kw.strip()) > 1]
+            
+            # 최종 키워드 조합 (기본 키워드 + 쿼리 키워드)
+            final_keywords = base_keywords + query_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            logger.info(f"최종 검색 키워드: {final_keywords}")
+            return final_keywords
+            
+        except Exception as e:
+            logger.error(f"키워드 추출 중 오류 발생: {str(e)}")
+            return ["장애인", "복지"]  # 오류 발생 시 기본 키워드만 반환
     
     def _prepare_messages(self, query: str, conversation_history: List[Dict[str, str]] = None) -> List[Dict[str, str]]:
         messages = [{"role": "system", "content": self._get_system_prompt()}]
-        
         if conversation_history:
             recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
             for msg in recent_history:
                 if msg.get("role") and msg.get("content"):
                     messages.append({"role": msg["role"], "content": msg["content"]})
-        
         messages.append({"role": "user", "content": query})
-        
         return messages
+    
+    def _format_card(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": data.get("id", WELFARE_CARD_TEMPLATE["id"]),
+            "title": data.get("title", WELFARE_CARD_TEMPLATE["title"]),
+            "subtitle": data.get("subtitle", WELFARE_CARD_TEMPLATE["subtitle"]),
+            "summary": data.get("summary", WELFARE_CARD_TEMPLATE["summary"]),
+            "type": data.get("type", WELFARE_CARD_TEMPLATE["type"]),
+            "details": data.get("details", WELFARE_CARD_TEMPLATE["details"]),
+            "source": data.get("source", WELFARE_CARD_TEMPLATE["source"]),
+            "buttons": data.get("buttons", WELFARE_CARD_TEMPLATE["buttons"])
+        }
     
     def _get_description(self) -> str:
         return "장애인 복지 서비스, 혜택 등에 대한 정보를 제공합니다."
@@ -288,17 +324,6 @@ class WelfareExpert(BaseExpert):
         return "🏥"
 
 async def welfare_response(query: str, keywords: List[str] = None, conversation_history=None) -> tuple:
-    """
-    복지 전문가 AI 응답 생성 함수
-    
-    Args:
-        query: 사용자 쿼리
-        keywords: 키워드 목록
-        conversation_history: 대화 이력
-        
-    Returns:
-        (응답 텍스트, 정보 카드 목록)
-    """
     expert = WelfareExpert()
     response = await expert.process_query(query, keywords, conversation_history)
     return response.get("text", ""), response.get("cards", []) 

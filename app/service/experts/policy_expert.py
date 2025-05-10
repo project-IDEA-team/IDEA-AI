@@ -1,9 +1,14 @@
 from typing import Dict, List, Any
 import logging
+import aiohttp
+import os
+import asyncio
 from app.models.expert_type import ExpertType
 from app.service.experts.base_expert import BaseExpert
 from app.service.openai_client import get_client
-# from app.service.public_api.api_manager import ApiManager  # API 의존성 제거
+from app.service.experts.common_form.example_cards import POLICY_CARD_TEMPLATE
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +21,35 @@ class PolicyExpert(BaseExpert):
     def __init__(self):
         super().__init__(ExpertType.POLICY)
         self.client = get_client()
-        # self.api_manager = ApiManager()  # API 의존성 제거
+
         self.model = "gpt-4.1-mini"  # 사용할 모델 지정
+        # 환경 변수에서 백엔드 API URL 가져오기
+        self.backend_api_url = os.getenv("BACKEND_API_URL", "http://localhost:8082/api")
+        logger.info(f"백엔드 API URL: {self.backend_api_url}")
     
     def _get_system_prompt(self) -> str:
         return """
         너는 장애인 정책 전문가 AI입니다. 
         장애인 관련 법률, 제도, 정책 등에 대한 정확하고 유용한 정보를 제공해야 합니다.
+        
+        모든 정보 카드는 반드시 아래와 같은 JSON 형식으로 만들어 주세요.
+        {
+          "id": "string",
+          "title": "string",
+          "subtitle": "string",
+          "summary": "string",
+          "type": "string",
+          "details": "string",
+          "source": {
+            "url": "string",
+            "name": "string",
+            "phone": "string"
+          },
+          "buttons": [
+            {"type": "link", "label": "string", "value": "string"},
+            {"type": "tel", "label": "string", "value": "string"}
+          ]
+        }
         
         제공할 정보 범위:
         - 장애인복지법, 장애인차별금지법 등 관련 법률
@@ -79,8 +106,7 @@ class PolicyExpert(BaseExpert):
     
     async def search_policy_database(self, keywords: List[str], policy_type: str = None) -> List[Dict[str, Any]]:
         """
-        키워드와 정책 유형을 기반으로 정책 데이터베이스를 검색합니다.
-        API 호출 대신 기본 데이터를 반환합니다.
+        키워드와 정책 유형을 기반으로 실제 DB에서 정책 정보를 검색합니다.
         
         Args:
             keywords: 검색 키워드 목록
@@ -89,118 +115,150 @@ class PolicyExpert(BaseExpert):
         Returns:
             검색된 정책 카드 목록
         """
-        # 권리 보장 관련 키워드가 있으면 장애인차별금지법 정보 제공
-        if any(kw in ["권리", "보장", "차별", "차별금지", "인권"] for kw in keywords):
-            return [{
-                "id": "right-1",
-                "title": "장애인차별금지 및 권리구제 등에 관한 법률",
-                "subtitle": "장애인 권리 보장",
-                "summary": "장애인이 사회에서 차별받지 않고 평등한 권리를 누릴 수 있도록 보호하는 법",
-                "type": "policy",
-                "details": (
-                    "법률명: 장애인차별금지 및 권리구제 등에 관한 법률\n"
-                    "시행일: 2008년 4월 11일\n"
-                    "주요내용:\n"
-                    "- 장애인에 대한 차별 금지 및 권리 구제\n"
-                    "- 장애인의 완전한 사회참여와 평등권 실현\n"
-                    "- 교육, 고용, 서비스 등 다양한 영역에서의 차별 금지\n"
-                    "신청방법: 차별 피해 시 국가인권위원회 또는 법원에 구제 신청 가능\n"
-                    "구제절차: 국가인권위원회 진정 → 조사/조정/권고 → 시정명령 → 이행강제금\n"
-                    "담당기관: 국가인권위원회, 보건복지부"
-                ),
-                "source": {
-                    "url": "https://www.humanrights.go.kr",
-                    "name": "국가인권위원회",
-                    "phone": "1331"
-                },
-                "buttons": [
-                    {"type": "link", "label": "자세히 보기", "value": "https://www.humanrights.go.kr"},
-                    {"type": "tel", "label": "인권상담전화", "value": "1331"}
-                ]
-            }]
-        
-        # 기본 장애인 복지 정책 정보 제공
-        return [{
-            "id": "policy-general",
-            "title": "장애인 복지 정책 종합 안내",
-            "subtitle": "기본 정책 정보",
-            "summary": "장애인을 위한 주요 복지 정책 안내",
-            "type": "policy",
-            "details": (
-                "장애인을 위한 주요 정책 안내:\n\n"
-                "1. 경제적 지원 정책\n"
-                "- 장애인연금: 중증장애인 대상 기초급여와 부가급여 지원\n"
-                "- 장애수당: 경증장애인 대상 소득 지원\n"
-                "- 장애아동수당: 장애아동 양육 가정 지원\n\n"
-                "2. 의료 지원 정책\n"
-                "- 의료비 지원: 의료급여 2종 수급권자 등 대상\n"
-                "- 건강보험료 경감: 저소득 장애인 가구 대상\n\n"
-                "3. 교육 지원 정책\n"
-                "- 특수교육 지원: 의무교육 실시 및 통합교육 지원\n"
-                "- 장애대학생 도우미 지원: 대학 생활 지원\n\n"
-                "4. 일자리 지원 정책\n"
-                "- 장애인 의무고용제도: 국가 및 민간기업 장애인 고용 의무화\n"
-                "- 장애인 고용장려금: 장애인 고용 사업주 지원\n\n"
-                "자세한 내용은 보건복지부 또는 가까운 주민센터에 문의하세요."
-            ),
-            "source": {
-                "url": "https://www.mohw.go.kr",
-                "name": "보건복지부",
-                "phone": "129"
-            },
-            "buttons": [
-                {"type": "link", "label": "자세히 보기", "value": "https://www.mohw.go.kr"},
-                {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-            ]
-        }]
+        try:
+            # 키워드가 None인 경우 빈 리스트로 초기화
+            if keywords is None:
+                keywords = []
+            
+            # 키워드가 문자열인 경우 리스트로 변환
+            if isinstance(keywords, str):
+                keywords = [keywords]
+            
+            # 키워드 필터링 (문자열만 허용)
+            valid_keywords = [kw for kw in keywords if isinstance(kw, str)]
+            
+            if not valid_keywords:
+                logger.warning("유효한 키워드가 없습니다.")
+                return [POLICY_CARD_TEMPLATE]
+            
+            # '장애인' 키워드는 제외하고, 나머지 중 첫 번째 키워드 사용
+            search_keywords = [kw for kw in valid_keywords if kw != "장애인"]
+            if search_keywords:
+                main_keyword = search_keywords[0]
+            else:
+                main_keyword = "장애인"
+            
+            # 백엔드 API에서 데이터 가져오기
+            retry_count = 0
+            max_retries = 3
+            
+            while retry_count < max_retries:
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        url = f"{self.backend_api_url}/public/welfare/search?keyword={main_keyword}"
+                        
+                        logger.info(f"백엔드 API 호출 시도 {retry_count + 1}/{max_retries}: {url}")
+                        
+                        async with session.get(url, timeout=10) as response:
+                            if response.status == 200:
+                                search_results = await response.json()
+                                logger.info(f"백엔드 API 응답 데이터 수: {len(search_results) if isinstance(search_results, list) else 0}")
+                                
+                                if not search_results:
+                                    logger.warning(f"키워드 '{main_keyword}'에 대한 검색 결과가 없습니다.")
+                                    return [POLICY_CARD_TEMPLATE]
+                                
+                                # 검색 결과를 카드 형식으로 변환
+                                policy_cards = []
+                                for result in search_results:
+                                    # 태그 추출 (lifeArray, intrsThemaArray 등에서)
+                                    tags = []
+                                    if result.get("lifeArray"):
+                                        tags.extend(result["lifeArray"].split(","))
+                                    if result.get("intrsThemaArray"):
+                                        tags.extend(result["intrsThemaArray"].split(","))
+                                    tags = list(set(tags))  # 중복 제거
+                                    
+                                    card = {
+                                        "id": result.get("servId", ""),
+                                        "title": result.get("servNm", ""),
+                                        "subtitle": result.get("jurMnofNm", ""),  # 담당부처
+                                        "summary": result.get("servDgst", ""),  # 서비스 요약
+                                        "type": "policy",
+                                        "details": (
+                                            f"지원대상: {result.get('trgterIndvdlArray', '')}\n"
+                                            f"지원내용: {result.get('alwServCn', '')}\n"
+                                            f"신청방법: {result.get('slctCritCn', '')}\n"
+                                            f"지원주기: {result.get('sprtCycNm', '')}\n"
+                                            f"제공유형: {result.get('srvPvsnNm', '')}"
+                                        ),
+                                        "source": {
+                                            "url": result.get("servDtlLink", ""),
+                                            "name": result.get("jurOrgNm", ""),  # 담당기관
+                                            "phone": result.get("rprsCtadr", "")  # 대표연락처
+                                        },
+                                        "buttons": [
+                                            {
+                                                "type": "link",
+                                                "label": "자세히 보기",
+                                                "value": result.get("servDtlLink", "")
+                                            }
+                                        ],
+                                        "tags": tags  # 태그 정보 추가
+                                    }
+                                    
+                                    # 연락처가 있는 경우 전화 버튼 추가
+                                    if result.get("rprsCtadr"):
+                                        card["buttons"].append({
+                                            "type": "tel",
+                                            "label": "문의하기",
+                                            "value": result.get("rprsCtadr")
+                                        })
+                                    
+                                    policy_cards.append(card)
+                                
+                                # 최대 3개 카드만 반환
+                                return policy_cards[:3]
+                            else:
+                                logger.error(f"백엔드 API 호출 실패: {response.status}")
+                                retry_count += 1
+                                if retry_count < max_retries:
+                                    await asyncio.sleep(1)  # 1초 대기 후 재시도
+                                    continue
+                                return [POLICY_CARD_TEMPLATE]
+                except Exception as e:
+                    logger.error(f"백엔드 API 호출 중 오류 발생 (시도 {retry_count + 1}/{max_retries}): {str(e)}")
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        await asyncio.sleep(1)  # 1초 대기 후 재시도
+                        continue
+                    return [POLICY_CARD_TEMPLATE]
+            
+            logger.error(f"최대 재시도 횟수({max_retries})를 초과했습니다.")
+            return [POLICY_CARD_TEMPLATE]
+            
+        except Exception as e:
+            logger.error(f"정책 데이터 검색 중 오류 발생: {str(e)}")
+            return [POLICY_CARD_TEMPLATE]
     
-    async def process_query(self, query: str, keywords: List[str] = None, conversation_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
+    async def process_query(self, query: str, keywords: List[str] = None, conversation_history=None) -> Dict[str, Any]:
         """
         사용자 쿼리를 처리하고 응답을 생성합니다.
         
         Args:
             query: 사용자 쿼리
             keywords: 슈퍼바이저가 추출한 키워드 목록
-            conversation_history: 이전 대화 내용
+            conversation_history: 대화 이력
             
         Returns:
-            응답 정보
+            응답 딕셔너리 (text, cards)
         """
         try:
-            # 이전 대화 이력을 처리하고 메시지 배열 생성
-            messages = self._prepare_messages(query, conversation_history)
+            # 검색 키워드 추출
+            search_keywords = self._extract_search_keywords(query, keywords)
+            logger.debug(f"추출된 검색 키워드: {search_keywords}")
             
-            # 키워드가 없는 경우 빈 리스트로 초기화
-            if not keywords:
-                keywords = []
+            # 정책 정보 검색
+            response = await self._search_policy_info(query, search_keywords)
             
-            # 정책 정보 카드 준비
-            policy_cards = await self.search_policy_database(keywords)
+            # 응답 검증 및 수정
+            validated_response = self.validate_response(response)
             
-            # LLM 응답 생성
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.7,
-                response_format={"type": "text"},
-                seed=42
-            )
-            
-            # 응답 텍스트 추출
-            response_text = response.choices[0].message.content.strip()
-            
-            # 최종 응답 생성
-            return {
-                "text": response_text,
-                "cards": policy_cards
-            }
+            return validated_response
             
         except Exception as e:
-            logger.error(f"응답 생성 중 오류 발생: {str(e)}")
-            return {
-                "text": "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다. 다시 시도해 주세요.",
-                "cards": []
-            }
+            logger.error(f"정책 전문가 응답 생성 중 오류 발생: {e}", exc_info=True)
+            return {"text": "죄송합니다. 응답을 생성하는 중 문제가 발생했습니다.", "cards": []}
     
     def _prepare_messages(self, query: str, conversation_history: List[Dict[str, str]] = None) -> List[Dict[str, str]]:
         """대화 이력을 처리하여 메시지 배열을 생성합니다."""
@@ -219,11 +277,144 @@ class PolicyExpert(BaseExpert):
         
         return messages
     
+    def _format_card(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": data.get("id", POLICY_CARD_TEMPLATE["id"]),
+            "title": data.get("title", POLICY_CARD_TEMPLATE["title"]),
+            "subtitle": data.get("subtitle", POLICY_CARD_TEMPLATE["subtitle"]),
+            "summary": data.get("summary", POLICY_CARD_TEMPLATE["summary"]),
+            "type": data.get("type", POLICY_CARD_TEMPLATE["type"]),
+            "details": data.get("details", POLICY_CARD_TEMPLATE["details"]),
+            "source": data.get("source", POLICY_CARD_TEMPLATE["source"]),
+            "buttons": data.get("buttons", POLICY_CARD_TEMPLATE["buttons"])
+        }
+    
     def _get_description(self) -> str:
         return "장애인 관련 법률, 제도, 정책 등에 대한 정보를 제공합니다."
     
     def _get_icon(self) -> str:
         return "📜"
+
+    def _extract_search_keywords(self, query: str, keywords: List[str] = None) -> List[str]:
+        """
+        검색에 사용할 키워드를 추출합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 슈퍼바이저가 추출한 키워드 목록
+            
+        Returns:
+            검색 키워드 목록
+        """
+        try:
+            # 1. 기본 키워드 (장애인)
+            base_keywords = ["장애인"]
+            
+            # 2. 슈퍼바이저가 제공한 키워드가 있으면 사용
+            if keywords and isinstance(keywords, list):
+                valid_keywords = [kw for kw in keywords if isinstance(kw, str)]
+                if valid_keywords:
+                    return base_keywords + valid_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            # 3. 쿼리에서 직접 키워드 추출
+            query_keywords = []
+            
+            # 주요 키워드 패턴
+            key_patterns = [
+                r"장애인\s+(\w+)",  # "장애인 이동" -> "이동"
+                r"(\w+)\s+지원금",  # "이동 지원금" -> "이동"
+                r"(\w+)\s+혜택",    # "이동 혜택" -> "이동"
+                r"(\w+)\s+제도",    # "이동 제도" -> "이동"
+                r"(\w+)\s+서비스"   # "이동 서비스" -> "이동"
+            ]
+            
+            import re
+            for pattern in key_patterns:
+                matches = re.findall(pattern, query)
+                query_keywords.extend(matches)
+            
+            # 중복 제거 및 정제
+            query_keywords = list(set(query_keywords))
+            query_keywords = [kw.strip() for kw in query_keywords if len(kw.strip()) > 1]
+            
+            # 최종 키워드 조합 (기본 키워드 + 쿼리 키워드)
+            final_keywords = base_keywords + query_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            logger.info(f"최종 검색 키워드: {final_keywords}")
+            return final_keywords
+            
+        except Exception as e:
+            logger.error(f"키워드 추출 중 오류 발생: {str(e)}")
+            return ["장애인"]  # 오류 발생 시 기본 키워드만 반환
+
+    async def _search_policy_info(self, query: str, keywords: List[str]) -> Dict[str, Any]:
+        """
+        정책 정보를 검색하고 응답을 생성합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 검색 키워드 목록
+            
+        Returns:
+            응답 딕셔너리 (text, cards)
+        """
+        try:
+            # 정책 카드 검색
+            policy_cards = await self.search_policy_database(keywords)
+            
+            # 각 카드의 형식 수정
+            formatted_cards = []
+            for card in policy_cards:
+                # 카드 제목은 정책명 사용
+                card["title"] = card.get("title", "정책 정보")
+                
+                # 요약은 한 줄로 제한
+                summary = card.get("summary", "")
+                if len(summary) > 50:  # 요약은 50자로 제한
+                    summary = summary[:47] + "..."
+                card["summary"] = summary
+                
+                # 버튼에 실제 링크 추가
+                if "source" in card and "url" in card["source"]:
+                    card["buttons"] = [
+                        {
+                            "type": "link",
+                            "label": "자세히 보기",
+                            "value": card["source"]["url"]
+                        }
+                    ]
+                    # 전화번호가 있으면 전화 버튼 추가
+                    if "phone" in card["source"] and card["source"]["phone"]:
+                        card["buttons"].append({
+                            "type": "tel",
+                            "label": "전화 문의",
+                            "value": card["source"]["phone"]
+                        })
+                
+                formatted_cards.append(card)
+            
+            # 응답 텍스트 생성
+            response_text = "안녕하세요! 문의하신 정책 정보를 알려드리겠습니다.\n\n"
+            
+            # 각 카드의 핵심 정보를 텍스트에 추가
+            for card in formatted_cards:
+                response_text += f"• {card['title']}\n"
+                response_text += f"{card['summary']}\n"
+                if "source" in card and "phone" in card["source"]:
+                    response_text += f"문의: {card['source']['name']} ({card['source']['phone']})\n"
+                response_text += "\n"
+            
+            return {
+                "text": response_text.strip(),
+                "cards": formatted_cards
+            }
+            
+        except Exception as e:
+            logger.error(f"정책 정보 검색 중 오류 발생: {str(e)}")
+            return {
+                "text": "죄송합니다. 정책 정보를 검색하는 중에 문제가 발생했습니다.",
+                "cards": [POLICY_CARD_TEMPLATE]
+            }
 
 async def policy_response(query: str, keywords: List[str] = None, conversation_history=None) -> tuple:
     """

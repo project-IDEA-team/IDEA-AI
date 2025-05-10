@@ -3,6 +3,7 @@ import logging
 from app.models.expert_type import ExpertType
 from app.service.experts.base_expert import BaseExpert
 from app.service.openai_client import get_client
+from app.service.experts.common_form.example_cards import MEDICAL_CARD_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,25 @@ class MedicalExpert(BaseExpert):
         return """
         너는 장애인 의료 전문가 AI입니다. 
         장애인 의료 지원 제도, 재활 서비스, 건강 관리 정보 등에 대한 정확하고 유용한 정보를 제공해야 합니다.
+        
+        모든 정보 카드는 반드시 아래와 같은 JSON 형식으로 만들어 주세요.
+        {
+          "id": "string",
+          "title": "string",
+          "subtitle": "string",
+          "summary": "string",
+          "type": "string",
+          "details": "string",
+          "source": {
+            "url": "string",
+            "name": "string",
+            "phone": "string"
+          },
+          "buttons": [
+            {"type": "link", "label": "string", "value": "string"},
+            {"type": "tel", "label": "string", "value": "string"}
+          ]
+        }
         
         제공할 정보 범위:
         - 장애인 의료비 지원 제도
@@ -51,8 +71,8 @@ class MedicalExpert(BaseExpert):
             {
                 "type": "function",
                 "function": {
-                    "name": "search_medical_information",
-                    "description": "장애인 의료 정보를 검색합니다.",
+                    "name": "search_medical_services",
+                    "description": "장애인 의료 서비스 정보를 검색합니다.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -63,7 +83,7 @@ class MedicalExpert(BaseExpert):
                                 },
                                 "description": "검색 키워드 목록"
                             },
-                            "medical_type": {
+                            "service_type": {
                                 "type": "string",
                                 "description": "의료 서비스 유형"
                             },
@@ -82,261 +102,227 @@ class MedicalExpert(BaseExpert):
             }
         ]
     
-    async def search_medical_information(self, keywords: List[str], medical_type: str = None, disability_type: str = None, region: str = None) -> List[Dict[str, Any]]:
+    async def search_medical_services(self, keywords: List[str], service_type: str = None, disability_type: str = None, region: str = None) -> List[Dict[str, Any]]:
         """
-        키워드, 의료 서비스 유형, 장애 유형, 지역 등을 기반으로 의료 정보를 검색합니다.
-        API 호출 대신 기본 데이터를 반환합니다.
+        의료 서비스 정보를 검색합니다.
         
         Args:
             keywords: 검색 키워드 목록
-            medical_type: 의료 서비스 유형
+            service_type: 서비스 유형
             disability_type: 장애 유형
             region: 지역 정보
             
         Returns:
-            검색된 의료 정보 카드 목록
+            의료 서비스 정보 카드 목록
         """
-        # 의료비 지원 관련 키워드가 있으면 의료비 지원 정보 제공
-        if any(kw in ["의료비", "진료비", "병원비", "비용", "지원금"] for kw in keywords):
-            return [{
-                "id": "medical-cost-1",
-                "title": "장애인 의료비 지원사업",
-                "subtitle": "의료비 지원",
-                "summary": "저소득 장애인의 의료비 부담 경감을 위한 지원 제도",
-                "type": "medical",
-                "details": (
-                    "장애인 의료비 지원사업은 저소득 장애인의 의료비 부담을 덜어주기 위한 제도입니다.\n\n"
-                    "지원대상:\n"
-                    "- 의료급여법에 의한 의료급여 2종 수급권자인 등록장애인\n"
-                    "- 건강보험의 차상위 본인부담경감대상자인 등록장애인\n\n"
-                    "지원내용:\n"
-                    "- 의료기관 이용 시 발생하는 본인부담금 지원\n"
-                    "- 1차 의료기관: 외래 750원 본인부담\n"
-                    "- 2차, 3차 의료기관: 본인부담금의 약 14~15% 본인부담\n"
-                    "- 비급여 항목은 지원 제외\n\n"
-                    "신청방법: 별도 신청 필요 없이 의료기관 이용 시 자격 확인 후 자동 적용"
-                ),
-                "source": {
-                    "url": "https://www.bokjiro.go.kr",
-                    "name": "복지로",
-                    "phone": "129"
-                },
-                "buttons": [
-                    {"type": "link", "label": "제도 안내", "value": "https://www.bokjiro.go.kr/medical-support"},
-                    {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-                ]
-            }]
-        
-        # 재활 관련 키워드가 있으면 재활 서비스 정보 제공
-        if any(kw in ["재활", "치료", "물리", "작업치료", "언어치료"] for kw in keywords):
-            return [{
-                "id": "rehabilitation-1",
-                "title": "장애인 재활치료 서비스",
-                "subtitle": "재활치료",
-                "summary": "장애인의 기능 회복과 유지를 위한 다양한 재활치료 서비스",
-                "type": "medical",
-                "details": (
-                    "장애인 재활치료 서비스는 장애인의 신체적, 정신적 기능 회복과 유지를 돕는 서비스입니다.\n\n"
-                    "제공 서비스:\n"
-                    "- 물리치료: 관절 운동, 근력 강화, 통증 관리 등\n"
-                    "- 작업치료: 일상생활 기술 훈련, 인지 재활 등\n"
-                    "- 언어치료: 의사소통 능력 향상, 발음 교정 등\n"
-                    "- 보조기기 훈련: 맞춤형 보조기기 사용법 교육\n"
-                    "- 심리재활: 장애 수용 및 적응 상담\n\n"
-                    "이용방법:\n"
-                    "- 지역 재활병원 및 장애인복지관 방문 신청\n"
-                    "- 국민건강보험공단 재활치료 이용 신청\n\n"
-                    "비용지원: 건강보험, 의료급여, 장애인 의료비 지원사업 등을 통해 일부 본인부담금 경감"
-                ),
-                "source": {
-                    "url": "https://www.nrc.go.kr",
-                    "name": "국립재활원",
-                    "phone": "02-901-1700"
-                },
-                "buttons": [
-                    {"type": "link", "label": "서비스 안내", "value": "https://www.nrc.go.kr"},
-                    {"type": "tel", "label": "국립재활원", "value": "02-901-1700"}
-                ]
-            }]
-        
-        # 보조기기 관련 키워드가 있으면 보조기기 정보 제공
-        if any(kw in ["보조기기", "보조기구", "복지용구", "휠체어", "보장구"] for kw in keywords):
-            return [{
-                "id": "assistive-device-1",
-                "title": "장애인 보조기기 지원사업",
-                "subtitle": "보조기기 지원",
-                "summary": "일상생활 및 재활에 필요한 보조기기 구입 비용 지원",
-                "type": "medical",
-                "details": (
-                    "장애인 보조기기 지원사업은 장애인의 일상생활과 재활에 필요한 보조기기 구입 비용을 지원하는 제도입니다.\n\n"
-                    "지원대상:\n"
-                    "- 국민기초생활보장법상 수급자 및 차상위계층 등록 장애인\n"
-                    "- 지원품목에 따라 장애유형과 등급 기준 상이\n\n"
-                    "지원품목:\n"
-                    "- 이동보조기기: 휠체어, 보행보조기 등\n"
-                    "- 일상생활보조기기: 목욕의자, 식사보조기기 등\n"
-                    "- 의사소통보조기기: 독서확대기, 영상확대비디오 등\n"
-                    "- 정보접근보조기기: 특수마우스, 특수키보드 등\n\n"
-                    "지원금액: 품목별 기준액 범위 내 실제 구입가격 지원\n\n"
-                    "신청방법: 주소지 관할 읍·면·동 주민센터 신청"
-                ),
-                "source": {
-                    "url": "https://www.knat.go.kr",
-                    "name": "국립재활원 중앙보조기기센터",
-                    "phone": "1670-5529"
-                },
-                "buttons": [
-                    {"type": "link", "label": "보조기기 안내", "value": "https://www.knat.go.kr"},
-                    {"type": "tel", "label": "중앙보조기기센터", "value": "1670-5529"}
-                ]
-            }]
-        
-        # 기본 장애인 건강 및 의료 정보 제공
-        return [{
-            "id": "medical-info-1",
-            "title": "장애인 건강 및 의료 지원 안내",
-            "subtitle": "의료 지원",
-            "summary": "장애인을 위한 건강관리 및 의료지원 서비스 종합 안내",
-            "type": "medical",
-            "details": (
-                "장애인을 위한 주요 의료 지원 서비스 안내입니다.\n\n"
-                "의료비 지원:\n"
-                "- 장애인 의료비 지원사업\n"
-                "- 건강보험 본인부담금 경감제도\n"
-                "- 희귀난치성질환자 의료비 지원\n\n"
-                "재활 서비스:\n"
-                "- 지역사회중심재활사업\n"
-                "- 장애인 건강검진 지원\n"
-                "- 발달재활 서비스\n\n"
-                "보조기기 지원:\n"
-                "- 장애인보조기기 구입비 지원\n"
-                "- 보조기기 대여 및 수리 지원\n\n"
-                "의료기관 이용:\n"
-                "- 장애인 건강주치의 제도\n"
-                "- 장애인 건강보건관리 서비스"
-            ),
-            "source": {
-                "url": "https://www.mohw.go.kr",
-                "name": "보건복지부",
-                "phone": "129"
-            },
-            "buttons": [
-                {"type": "link", "label": "자세히 보기", "value": "https://www.mohw.go.kr"},
-                {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-            ]
-        }]
+        try:
+            # 실제 DB/API 검색 로직 구현 필요
+            cards = []
+            
+            # 검색 결과 없으면 fallback 카드
+            if not cards:
+                cards = [{
+                    "id": "medical-general",
+                    "title": "장애인 의료 서비스 안내",
+                    "subtitle": "의료 정보",
+                    "summary": "장애인을 위한 다양한 의료 서비스 종합 안내",
+                    "type": "medical",
+                    "details": "검색 결과가 없습니다. 가까운 보건소나 의료기관에 문의하세요.",
+                    "source": {
+                        "url": "https://www.nhis.or.kr",
+                        "name": "국민건강보험공단",
+                        "phone": "1577-1000"
+                    },
+                    "buttons": [
+                        {"type": "link", "label": "건강보험공단 홈페이지", "value": "https://www.nhis.or.kr"},
+                        {"type": "tel", "label": "건강보험공단 상담센터", "value": "1577-1000"}
+                    ]
+                }]
+            return cards
+            
+        except Exception as e:
+            logger.error(f"의료 서비스 검색 중 오류 발생: {str(e)}")
+            return [MEDICAL_CARD_TEMPLATE]
 
-    async def process_query(self, query: str, keywords: List[str] = None, conversation_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
+    async def _search_medical_info(self, query: str, keywords: List[str]) -> Dict[str, Any]:
         """
-        사용자 쿼리를 처리하고 적절한 응답을 생성합니다.
+        의료 정보를 검색하고 응답을 생성합니다.
         
         Args:
             query: 사용자 쿼리
             keywords: 검색 키워드 목록
-            conversation_history: 대화 이력
             
         Returns:
-            응답 정보
+            응답 딕셔너리 (text, cards)
         """
         try:
-            # 이전 대화 이력을 처리하고 메시지 배열 생성
-            messages = self._prepare_messages(query, conversation_history)
+            # 의료 정보 카드 검색
+            medical_cards = await self.search_medical_services(keywords)
             
-            # 추출된 키워드가 없는 경우 빈 리스트로 초기화
-            if not keywords:
-                keywords = []
+            # 각 카드의 형식 수정
+            formatted_cards = []
+            for card in medical_cards:
+                # 카드 제목은 의료 서비스명 사용
+                card["title"] = card.get("title", "의료 정보")
+                
+                # 요약은 한 줄로 제한
+                summary = card.get("summary", "")
+                if len(summary) > 50:  # 요약은 50자로 제한
+                    summary = summary[:47] + "..."
+                card["summary"] = summary
+                
+                # 버튼에 실제 링크 추가
+                if "source" in card and "url" in card["source"]:
+                    card["buttons"] = [
+                        {
+                            "type": "link",
+                            "label": "자세히 보기",
+                            "value": card["source"]["url"]
+                        }
+                    ]
+                    # 전화번호가 있으면 전화 버튼 추가
+                    if "phone" in card["source"] and card["source"]["phone"]:
+                        card["buttons"].append({
+                            "type": "tel",
+                            "label": "전화 문의",
+                            "value": card["source"]["phone"]
+                        })
+                
+                formatted_cards.append(card)
             
-            # 기본 의료 정보 카드 
-            medical_cards = [{
-                "id": "medical-info-general",
-                "title": "장애인 의료 지원 정보",
-                "subtitle": "의료 지원",
-                "summary": "장애인을 위한 주요 의료 지원 제도 안내",
-                "type": "medical",
-                "details": (
-                    "장애인을 위한 주요 의료 지원 제도:\n\n"
-                    "1. 장애인 의료비 지원사업\n"
-                    "- 의료급여 2종 수급권자, 차상위 본인부담경감대상자인 등록장애인 대상\n"
-                    "- 의료기관 이용 시 본인부담금 일부 지원\n"
-                    "- 문의: 보건복지상담센터 129\n\n"
-                    "2. 장애인 건강주치의 제도\n"
-                    "- 만성질환 등 건강관리가 필요한 장애인에게 주치의 서비스 제공\n"
-                    "- 문의: 국민건강보험공단 1577-1000\n\n"
-                    "3. 발달재활서비스\n"
-                    "- 만 18세 미만 장애아동에게 언어, 청능, 미술, 음악, 행동, 놀이, 심리운동, 재활심리, 감각통합, 운동재활 등 서비스 제공\n"
-                    "- 문의: 주소지 읍면동 주민센터"
-                ),
-                "source": {
-                    "url": "https://www.mohw.go.kr",
-                    "name": "보건복지부",
-                    "phone": "129"
-                },
-                "buttons": [
-                    {"type": "link", "label": "자세히 보기", "value": "https://www.mohw.go.kr"},
-                    {"type": "tel", "label": "보건복지상담센터", "value": "129"}
-                ]
-            }]
+            # 응답 텍스트 생성
+            response_text = "안녕하세요! 문의하신 의료 정보를 알려드리겠습니다.\n\n"
             
-            # LLM 응답 생성
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.7,
-                response_format={"type": "text"},
-                seed=42
-            )
+            # 각 카드의 핵심 정보를 텍스트에 추가
+            for card in formatted_cards:
+                response_text += f"• {card['title']}\n"
+                response_text += f"{card['summary']}\n"
+                if "source" in card and "phone" in card["source"]:
+                    response_text += f"문의: {card['source']['name']} ({card['source']['phone']})\n"
+                response_text += "\n"
             
-            # 응답 텍스트 추출
-            response_text = response.choices[0].message.content.strip()
-            
-            # 최종 응답 생성
             return {
-                "text": response_text,
-                "cards": medical_cards
+                "text": response_text.strip(),
+                "cards": formatted_cards
             }
             
         except Exception as e:
-            logger.error(f"응답 생성 중 오류 발생: {str(e)}")
+            logger.error(f"의료 정보 검색 중 오류 발생: {str(e)}")
             return {
-                "text": "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다. 다시 시도해 주세요.",
-                "cards": []
+                "text": "죄송합니다. 의료 정보를 검색하는 중에 문제가 발생했습니다.",
+                "cards": [MEDICAL_CARD_TEMPLATE]
             }
+
+    async def process_query(self, query: str, keywords: List[str] = None, conversation_history=None) -> Dict[str, Any]:
+        """
+        사용자 쿼리를 처리하고 응답을 생성합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 슈퍼바이저가 추출한 키워드 목록
+            conversation_history: 대화 이력
+            
+        Returns:
+            응답 딕셔너리 (text, cards)
+        """
+        try:
+            # 검색 키워드 추출
+            search_keywords = self._extract_search_keywords(query, keywords)
+            logger.debug(f"추출된 검색 키워드: {search_keywords}")
+            
+            # 의료 정보 검색
+            response = await self._search_medical_info(query, search_keywords)
+            
+            # 응답 검증 및 수정
+            validated_response = self.validate_response(response)
+            
+            return validated_response
+            
+        except Exception as e:
+            logger.error(f"의료 전문가 응답 생성 중 오류 발생: {e}", exc_info=True)
+            return {"text": "죄송합니다. 응답을 생성하는 중 문제가 발생했습니다.", "cards": []}
+
+    def _extract_search_keywords(self, query: str, keywords: List[str] = None) -> List[str]:
+        """
+        검색에 사용할 키워드를 추출합니다.
+        
+        Args:
+            query: 사용자 쿼리
+            keywords: 슈퍼바이저가 제공한 키워드 목록
+            
+        Returns:
+            검색 키워드 목록
+        """
+        try:
+            # 1. 기본 키워드 (장애인, 의료)
+            base_keywords = ["장애인", "의료"]
+            
+            # 2. 슈퍼바이저가 제공한 키워드가 있으면 사용
+            if keywords and isinstance(keywords, list):
+                valid_keywords = [kw for kw in keywords if isinstance(kw, str)]
+                if valid_keywords:
+                    return base_keywords + valid_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            # 3. 쿼리에서 직접 키워드 추출
+            query_keywords = []
+            
+            # 주요 키워드 패턴
+            key_patterns = [
+                r"장애인\s+(\w+)",  # "장애인 의료" -> "의료"
+                r"(\w+)\s+치료",    # "재활 치료" -> "재활"
+                r"(\w+)\s+검사",    # "건강 검사" -> "건강"
+                r"(\w+)\s+병원",    # "전문 병원" -> "전문"
+                r"(\w+)\s+진료"     # "정기 진료" -> "정기"
+            ]
+            
+            import re
+            for pattern in key_patterns:
+                matches = re.findall(pattern, query)
+                query_keywords.extend(matches)
+            
+            # 중복 제거 및 정제
+            query_keywords = list(set(query_keywords))
+            query_keywords = [kw.strip() for kw in query_keywords if len(kw.strip()) > 1]
+            
+            # 최종 키워드 조합 (기본 키워드 + 쿼리 키워드)
+            final_keywords = base_keywords + query_keywords[:3]  # 최대 3개 키워드만 사용
+            
+            logger.info(f"최종 검색 키워드: {final_keywords}")
+            return final_keywords
+            
+        except Exception as e:
+            logger.error(f"키워드 추출 중 오류 발생: {str(e)}")
+            return ["장애인", "의료"]  # 오류 발생 시 기본 키워드만 반환
     
     def _prepare_messages(self, query: str, conversation_history: List[Dict[str, str]] = None) -> List[Dict[str, str]]:
-        """대화 이력을 처리하여 메시지 배열을 생성합니다."""
         messages = [{"role": "system", "content": self._get_system_prompt()}]
-        
-        # 대화 이력이 있는 경우 추가
         if conversation_history:
-            # 너무 긴 이력은 최근 5개만 사용
             recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
             for msg in recent_history:
                 if msg.get("role") and msg.get("content"):
                     messages.append({"role": msg["role"], "content": msg["content"]})
-        
-        # 현재 쿼리 추가
         messages.append({"role": "user", "content": query})
-        
         return messages
     
+    def _format_card(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": data.get("id", MEDICAL_CARD_TEMPLATE["id"]),
+            "title": data.get("title", MEDICAL_CARD_TEMPLATE["title"]),
+            "subtitle": data.get("subtitle", MEDICAL_CARD_TEMPLATE["subtitle"]),
+            "summary": data.get("summary", MEDICAL_CARD_TEMPLATE["summary"]),
+            "type": data.get("type", MEDICAL_CARD_TEMPLATE["type"]),
+            "details": data.get("details", MEDICAL_CARD_TEMPLATE["details"]),
+            "source": data.get("source", MEDICAL_CARD_TEMPLATE["source"]),
+            "buttons": data.get("buttons", MEDICAL_CARD_TEMPLATE["buttons"])
+        }
+    
     def _get_description(self) -> str:
-        return "장애인 의료 지원, 재활 서비스, 건강 정보 등에 대한 정보를 제공합니다."
+        return "장애인 의료 지원, 재활 서비스, 건강 정보 등을 제공합니다."
     
     def _get_icon(self) -> str:
         return "🏥"
 
 async def medical_response(query: str, keywords: List[str] = None, conversation_history=None) -> tuple:
-    """
-    의료 전문가 AI 응답 생성 함수
-    
-    Args:
-        query: 사용자 쿼리
-        keywords: 키워드 목록
-        conversation_history: 대화 이력
-        
-    Returns:
-        (응답 텍스트, 정보 카드 목록)
-    """
     expert = MedicalExpert()
     response = await expert.process_query(query, keywords, conversation_history)
     return response.get("text", ""), response.get("cards", []) 

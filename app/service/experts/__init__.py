@@ -129,14 +129,18 @@ async def get_expert_response(query: str, expert_type: str, keywords: List[str] 
         
         # 전문가 응답 함수 호출
         logger.debug(f"'{expert_type}' ({expert_class_name}) 전문가 응답 함수 호출: 키워드={keywords}")
-        answer, cards = await response_func(query, keywords, conversation_history)
-        
+        result = await response_func(query, keywords, conversation_history)
+        if isinstance(result, tuple) and len(result) == 3:
+            answer, cards, action = result
+        else:
+            answer, cards = result
+            action = None
         logger.info(f"전문가 응답 생성 완료: {expert_class_name} - {len(cards)}개의 카드 생성됨, 응답길이={len(answer)}")
-        return answer, cards
+        return answer, cards, action
         
     except Exception as e:
         logger.error(f"전문가 응답 생성 중 오류 발생: {e}", exc_info=True)
-        return "죄송합니다. 응답을 생성하는 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.", []
+        return "죄송합니다. 응답을 생성하는 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.", [], None
 
 def get_available_experts() -> List[Dict[str, Any]]:
     """
