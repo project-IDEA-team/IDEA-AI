@@ -1,11 +1,18 @@
+# FastAPI 웹 프레임워크 및 관련 의존성
 fastapi[all]
+
+# 데이터베이스 및 저장소
 pymongo
-openai
-python-dotenv
-beautifulsoup4
-requests
+
+# AI/ML 관련 패키지
 langchain
+numpy
+openai
 sentence-transformers
 torch
 transformers
-numpy
+
+# 유틸리티
+beautifulsoup4
+python-dotenv
+requests
