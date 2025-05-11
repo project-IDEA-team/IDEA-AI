@@ -59,3 +59,8 @@ Thumbs.db
 *.bak
 *.tmp
 *.swp
+.cursor/
+docs/
+xnotes/
+.cursorignore
+.cursorindexingignore
