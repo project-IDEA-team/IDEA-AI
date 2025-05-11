@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 from app.service.experts import get_expert_response
 from app.service.agents.general_chatbot import GeneralChatbot
 from app.service.agents.supervisor import SupervisorAgent
+from app.service.analyzer.benefit_analysis import analyze_and_store
 import logging
 
 router = APIRouter()
@@ -152,3 +153,8 @@ async def process_conversation(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/analyze/benefits")
+async def analyze_endpoint(user_info: dict, job_info: dict):
+    result = await analyze_and_store(user_info, job_info)
+    return result or {"error": "분석 실패"}
