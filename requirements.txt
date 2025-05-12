@@ -1,8 +1,10 @@
 # FastAPI 웹 프레임워크 및 관련 의존성
 fastapi[all]
+aiohttp
 
 # 데이터베이스 및 저장소
 pymongo
+pymysql
 
 # AI/ML 관련 패키지
 langchain
