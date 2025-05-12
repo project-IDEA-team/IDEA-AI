@@ -3,11 +3,105 @@ from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 import numpy as np
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+import logging
+from motor.motor_asyncio import AsyncIOMotorClient
+from app.config.settings import MONGODB_URL
 
 load_dotenv()
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client["kead_db"]
 collection = db["policy_chunks"]
+
+logger = logging.getLogger(__name__)
+
+class MongoDBClient:
+    def __init__(self):
+        self.client = AsyncIOMotorClient(MONGODB_URL)
+        self.db = self.client.kead_db
+    
+    async def save_chat_history(
+        self,
+        user_id: str,
+        messages: List[Dict[str, Any]],
+        user_type: str
+    ) -> bool:
+        """
+        대화 이력을 저장합니다.
+        
+        Args:
+            user_id: 사용자 ID
+            messages: 대화 메시지 목록
+            user_type: 사용자 유형
+            
+        Returns:
+            저장 성공 여부
+        """
+        try:
+            chat_record = {
+                "user_id": user_id,
+                "user_type": user_type,
+                "messages": messages,
+                "timestamp": datetime.utcnow()
+            }
+            
+            await self.db.chat_history.insert_one(chat_record)
+            return True
+            
+        except Exception as e:
+            logger.error(f"대화 이력 저장 중 오류 발생: {str(e)}")
+            return False
+    
+    async def get_chat_history(
+        self,
+        user_id: str,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        사용자의 대화 이력을 조회합니다.
+        
+        Args:
+            user_id: 사용자 ID
+            limit: 조회할 최대 대화 수
+            
+        Returns:
+            대화 이력 목록
+        """
+        try:
+            cursor = self.db.chat_history.find(
+                {"user_id": user_id}
+            ).sort("timestamp", -1).limit(limit)
+            
+            chat_history = []
+            async for doc in cursor:
+                # ObjectId를 문자열로 변환
+                doc["_id"] = str(doc["_id"])
+                chat_history.append(doc)
+            
+            return chat_history
+            
+        except Exception as e:
+            logger.error(f"대화 이력 조회 중 오류 발생: {str(e)}")
+            return []
+
+    async def delete_chat_history(self, user_id: str) -> bool:
+        """
+        사용자의 대화 이력을 삭제합니다.
+        
+        Args:
+            user_id: 사용자 ID
+            
+        Returns:
+            삭제 성공 여부
+        """
+        try:
+            result = await self.db.chat_history.delete_many({"user_id": user_id})
+            return result.deleted_count > 0
+            
+        except Exception as e:
+            logger.error(f"대화 이력 삭제 중 오류 발생: {str(e)}")
+            return False
 
 # ✅ 1. Atlas Search 기반 키워드 검색
 def search_chunks_by_keyword(keyword: str, limit: int = 5):

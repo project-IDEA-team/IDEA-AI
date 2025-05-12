@@ -4,7 +4,6 @@ from typing import List, Dict, Any, Optional
 from app.service.dialogue_manager import DialogueManager
 from app.models.response import ChatbotResponse, Card, ExpertCard, DialogueState
 from app.service.agents.general_chatbot import GeneralChatbot
-from app.service.agents.supervisor import SupervisorAgent
 from app.models.expert_type import ExpertType, UserType
 from app.service.analyzer.benefit_analysis import analyze_and_store
 import logging
@@ -35,9 +34,6 @@ class ConversationRequest(BaseModel):
 # 의존성 주입을 위한 함수
 def get_general_chatbot():
     return GeneralChatbot()
-
-def get_supervisor_agent():
-    return SupervisorAgent()
 
 def get_dialogue_manager():
     return DialogueManager()

@@ -1,1 +1,7 @@
-# 공공데이터포털(OpenAPI) 연동 모듈은 public_api/ 폴더에서 관리합니다. 
+# app/service/__init__.py
+# 주요 서비스 컴포넌트 export
+from .dialogue_manager import DialogueManager
+from .nlu import NLUService
+from .mongodb import MongoClient
+
+__all__ = ['DialogueManager', 'NLUService', 'MongoClient']

@@ -2,6 +2,9 @@ from typing import Dict, List, Any, Optional
 import re
 import json
 import logging
+from konlpy.tag import Okt
+from keybert import KeyBERT
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -10,49 +13,83 @@ class DataProcessor:
     데이터 처리 유틸리티 클래스
     """
     
-    @staticmethod
-    def extract_keywords(text: str, max_keywords: int = 5) -> List[str]:
+    def __init__(self):
+        """초기화"""
+        self.okt = Okt()
+        self.keybert_model = KeyBERT()
+        
+    def extract_keywords(self, text: str, top_n: int = 5) -> List[str]:
         """
-        텍스트에서 키워드를 추출합니다.
+        텍스트에서 주요 키워드를 추출합니다.
         
         Args:
-            text: 키워드를 추출할 텍스트
-            max_keywords: 최대 키워드 수
+            text: 입력 텍스트
+            top_n: 추출할 키워드 수
             
         Returns:
-            추출된 키워드 목록
+            추출된 키워드 리스트
         """
-        # 실제 구현에서는 NLP 라이브러리를 사용하여 키워드 추출
-        # 임시 구현: 간단한 규칙 기반 키워드 추출
-        
-        # 텍스트 전처리
-        text = text.lower()
-        
-        # 불용어 정의 (실제로는 더 많은 불용어 필요)
-        stopwords = [
-            "안녕", "하세요", "입니다", "그리고", "그런데", "하지만", "또한", "이제", "만약", "어떻게",
-            "언제", "왜", "어디", "누구", "무엇", "얼마나", "있는", "있다", "없는", "없다", "해서",
-            "이런", "저런", "어떤", "제가", "나는", "너는", "우리", "당신", "그것", "좀", "많이"
+        try:
+            # 형태소 분석
+            normalized = self.okt.normalize(text)
+            tokens = self.okt.phrases(normalized)
+            
+            # KeyBERT를 사용한 키워드 추출
+            keywords = self.keybert_model.extract_keywords(
+                normalized,
+                keyphrase_ngram_range=(1, 2),  # 1-2개 단어로 구성된 키워드 추출
+                stop_words=self._get_korean_stop_words(),
+                top_n=top_n
+            )
+            
+            # (keyword, score) 튜플에서 keyword만 추출
+            extracted_keywords = [keyword for keyword, _ in keywords]
+            
+            # 형태소 분석 결과와 KeyBERT 결과 결합
+            combined_keywords = list(set(extracted_keywords + tokens[:top_n]))
+            
+            return combined_keywords[:top_n]
+            
+        except Exception as e:
+            logger.error(f"키워드 추출 중 오류 발생: {str(e)}")
+            return []
+    
+    def _get_korean_stop_words(self) -> List[str]:
+        """한국어 불용어 목록을 반환합니다."""
+        return [
+            "있다", "하다", "이다", "되다", "없다", "같다", "보다", "이", "그", "저",
+            "것", "수", "등", "들", "및", "에서", "그리고", "그러나", "하지만", "또는",
+            "또한", "때문에", "위해", "통해", "으로", "에게", "에서", "부터", "까지"
         ]
+    
+    def calculate_similarity(self, text1: str, text2: str) -> float:
+        """
+        두 텍스트 간의 유사도를 계산합니다.
         
-        # 정규식으로 단어 분리 (한글, 영문, 숫자)
-        words = re.findall(r'[가-힣a-zA-Z0-9]+', text)
-        
-        # 불용어 제거 및 길이가 1인 단어 제거
-        filtered_words = [word for word in words if word not in stopwords and len(word) > 1]
-        
-        # 단어 빈도 계산
-        word_freq = {}
-        for word in filtered_words:
-            word_freq[word] = word_freq.get(word, 0) + 1
-        
-        # 빈도순 정렬
-        sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
-        
-        # 최대 개수만큼 키워드 추출
-        keywords = [word for word, _ in sorted_words[:max_keywords]]
-        
-        return keywords
+        Args:
+            text1: 첫 번째 텍스트
+            text2: 두 번째 텍스트
+            
+        Returns:
+            유사도 점수 (0.0 ~ 1.0)
+        """
+        try:
+            # 각 텍스트의 키워드 추출
+            keywords1 = set(self.extract_keywords(text1))
+            keywords2 = set(self.extract_keywords(text2))
+            
+            # Jaccard 유사도 계산
+            intersection = len(keywords1.intersection(keywords2))
+            union = len(keywords1.union(keywords2))
+            
+            if union == 0:
+                return 0.0
+                
+            return intersection / union
+            
+        except Exception as e:
+            logger.error(f"유사도 계산 중 오류 발생: {str(e)}")
+            return 0.0
     
     @staticmethod
     def format_policy_cards(cards: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

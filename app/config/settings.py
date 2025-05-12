@@ -109,4 +109,8 @@ POLICY_DATA_FILE = os.path.join(DATA_DIR, "policies.json")
 
 # 세션 설정
 SESSION_SECRET = os.getenv("SESSION_SECRET", "my_secret_key")
-SESSION_EXPIRE_DAYS = int(os.getenv("SESSION_EXPIRE_DAYS", "7")) 
+SESSION_EXPIRE_DAYS = int(os.getenv("SESSION_EXPIRE_DAYS", "7"))
+
+# MongoDB 설정
+MONGODB_URL = os.getenv("MONGO_URI")
+
