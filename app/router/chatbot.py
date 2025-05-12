@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
-from app.service.experts import get_expert_response
+from app.service.dialogue_manager import DialogueManager
+from app.models.response import ChatbotResponse, Card, ExpertCard, DialogueState
 from app.service.agents.general_chatbot import GeneralChatbot
 from app.service.agents.supervisor import SupervisorAgent
+from app.models.expert_type import ExpertType, UserType
 from app.service.analyzer.benefit_analysis import analyze_and_store
 import logging
 
@@ -17,10 +19,14 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
+    user_type: UserType
+    session_state: Optional[Dict[str, Any]] = None
 
 class ExpertQueryRequest(BaseModel):
     text: str
-    expert_type: str
+    expert_type: ExpertType
+    user_type: UserType
+    session_state: Optional[Dict[str, Any]] = None
 
 class ConversationRequest(BaseModel):
     messages: List[Dict[str, Any]]
@@ -33,126 +39,164 @@ def get_general_chatbot():
 def get_supervisor_agent():
     return SupervisorAgent()
 
-@router.post("/chat/start")
-async def start_chat():
-    expert_cards = [
-        {
-            "id": "policy",
-            "title": "정책 전문가",
-            "expert_type": "장애인 정책",
-            "description": "정부, 지자체의 장애인 관련 법률 및 제도 안내",
-            "icon": "📜"
-        },
-        {
-            "id": "employment",
-            "title": "취업 전문가",
-            "expert_type": "장애인 취업",
-            "description": "공공기관 및 민간기업 취업 정보 제공",
-            "icon": "💼"
-        },
-        {
-            "id": "welfare",
-            "title": "복지 전문가",
-            "expert_type": "장애인 복지",
-            "description": "장애인 복지 서비스 및 혜택 안내",
-            "icon": "🏥"
-        },
-        {
-            "id": "startup",
-            "title": "창업 전문가",
-            "expert_type": "장애인 창업",
-            "description": "장애인 창업 지원 제도 및 프로그램 안내",
-            "icon": "🚀"
-        },
-        {
-            "id": "medical",
-            "title": "의료 전문가",
-            "expert_type": "장애인 의료",
-            "description": "장애 유형별 진료 및 의료 지원 정보",
-            "icon": "⚕️"
-        },
-        {
-            "id": "education",
-            "title": "교육 전문가",
-            "expert_type": "장애인 교육",
-            "description": "장애인 교육 프로그램 및 지원 제도 안내",
-            "icon": "📚"
-        },
-        {
-            "id": "counseling",
-            "title": "상담 전문가",
-            "expert_type": "전문 상담",
-            "description": "장애인 심리 상담 및 가족 상담 프로그램",
-            "icon": "💬"
-        }
-    ]
-    return {
-        "answer": "안녕하세요! 장애인 복지 전문 챗봇입니다. 원하시는 서비스를 선택해주세요.",
-        "action_cards": expert_cards
-    }
+def get_dialogue_manager():
+    return DialogueManager()
 
-@router.post("/chat/expert")
-async def chat_expert_query(req: ExpertQueryRequest):
-    try:
-        answer, cards = await get_expert_response(req.text, req.expert_type)
-        return {"answer": answer, "cards": cards}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/chat/start", response_model=ChatbotResponse)
+async def start_chat(user_type: UserType = Query(..., description="사용자 유형 (disabled: 장애인, company: 기업)")):
+    """초기 대화를 시작합니다."""
+    if user_type == UserType.DISABLED:
+        expert_cards = [
+            ExpertCard(
+                id="policy",
+                title="정책 전문가",
+                expert_type=ExpertType.POLICY,
+                description="의료, 복지, 취업 관련 정부 정책 정보 제공",
+                icon="📜",
+                type="expert",
+                summary="장애인 정책 정보 제공",
+                details="장애인 복지 정책, 의료 지원, 취업 지원 등에 대한 종합적인 정보를 제공합니다."
+            ),
+            ExpertCard(
+                id="employment",
+                title="취업/창업 전문가",
+                expert_type=ExpertType.EMPLOYMENT,
+                description="취업 정보, 직업 교육, 창업 지원 안내",
+                icon="💼",
+                type="expert",
+                summary="장애인 취업/창업 정보 제공"
+            )
+        ]
+        welcome_message = "안녕하세요! 장애인 복지 정보 챗봇입니다. 어떤 정보를 찾으시나요?"
+    else:
+        expert_cards = [
+            ExpertCard(
+                id="company_policy",
+                title="기업 정책 전문가",
+                expert_type=ExpertType.COMPANY_POLICY,
+                description="장애인 고용 관련 법률 및 지원금 안내",
+                icon="⚖️",
+                type="expert",
+                summary="기업 정책 정보 제공",
+                details="장애인 고용 관련 법률 및 지원금에 대한 상세 안내를 제공합니다. 의무고용률, 고용장려금, 시설장비 지원금 등 기업이 알아야 할 핵심 정보를 안내해드립니다."
+            ),
+            ExpertCard(
+                id="recruitment",
+                title="구인/인재 전문가",
+                expert_type=ExpertType.RECRUITMENT,
+                description="장애인 구직자 정보 및 채용 절차 안내",
+                icon="🤝",
+                type="expert",
+                summary="구인/구직 정보 제공",
+                details="장애인 구직자 정보 검색 및 매칭, 채용 절차 안내, 정부 지원 제도 등 채용과 관련된 모든 정보를 제공합니다."
+            )
+        ]
+        welcome_message = "안녕하세요! 기업을 위한 장애인 고용 지원 챗봇입니다. 어떤 정보를 찾으시나요?"
+    
+    return ChatbotResponse(
+        answer=welcome_message,
+        state=DialogueState.START,
+        needs_more_info=False,
+        action_cards=expert_cards
+    )
 
-@router.post("/chat/conversation")
+@router.post("/chat/conversation", response_model=ChatbotResponse)
 async def process_conversation(
-    req: ConversationRequest,
-    general_chatbot: GeneralChatbot = Depends(get_general_chatbot),
-    supervisor_agent: SupervisorAgent = Depends(get_supervisor_agent)
+    req: ChatRequest,
+    dialogue_manager: DialogueManager = Depends(get_dialogue_manager),
+    general_chatbot: GeneralChatbot = Depends(get_general_chatbot)
 ):
+    """사용자 메시지를 처리하고 응답을 생성합니다."""
     try:
-        # 현재 메시지 추출
-        latest_message = req.messages[-1]["content"] if req.messages else ""
+        current_message = req.messages[-1].content if req.messages else ""
+        session_state = req.session_state or {}
         
-        # 전문가 유형이 지정된 경우
-        if req.expert_type:
-            expert_response = await get_expert_response(
-                latest_message,
-                req.expert_type,
-                req.messages  # 대화 이력 전달
-            )
-            
-            # 사용자 친화적 응답 생성
-            user_friendly_response = await general_chatbot.create_user_friendly_response(
-                {"answer": expert_response[0], "cards": expert_response[1]},
-                req.messages
-            )
-            
-            return {
-                "answer": user_friendly_response,
-                "cards": expert_response[1]
-            }
+        # ChatMessage 객체를 딕셔너리로 변환
+        messages_dict = [
+            {"role": msg.role, "content": msg.content}
+            for msg in req.messages
+        ]
         
-        # 전문가 유형이 지정되지 않은 경우 (일반 대화)
-        # 일반 챗봇 처리
-        general_response = await general_chatbot.process_initial_query(latest_message)
-        
-        # 슈퍼바이저 분석
-        expert_type, keywords = await supervisor_agent.analyze_conversation(req.messages)
-        
-        # 적합한 전문가 응답 생성 (대화 이력 전달)
-        expert_response = await get_expert_response(
-            latest_message, 
-            expert_type.value,
-            keywords,  # keywords를 세 번째 매개변수로 이동
-            req.messages  # conversation_history를 네 번째 매개변수로 이동
+        # 대화 관리자를 통한 메시지 처리
+        response = await dialogue_manager.process_message(
+            text=current_message,
+            session_state=session_state,
+            user_type=req.user_type
         )
         
-        # 응답 종합
-        combined_response = await supervisor_agent.consolidate_responses([
-            {"answer": general_response["initial_response"], "cards": []},
-            {"answer": expert_response[0], "cards": expert_response[1]}
-        ])
+        # 일반 챗봇을 통한 응답 가공
+        friendly_response = await general_chatbot.create_user_friendly_response(
+            expert_response=response,
+            conversation=messages_dict,  # 변환된 딕셔너리 리스트 사용
+            user_type=req.user_type
+        )
         
-        return combined_response
+        # 응답 구성
+        chatbot_response = ChatbotResponse(
+            answer=friendly_response["answer"],
+            state=DialogueState(response.get("state", DialogueState.ERROR)),
+            intent=response.get("intent"),
+            slots=response.get("slots"),
+            needs_more_info=response.get("needs_more_info", False),
+            cards=friendly_response.get("cards"),
+            action_cards=response.get("action_cards"),
+            conversation_history=messages_dict  # 변환된 딕셔너리 리스트 사용
+        )
+        
+        return chatbot_response
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error processing conversation")
+        return ChatbotResponse(
+            answer="죄송합니다. 요청을 처리하는 중 오류가 발생했습니다.",
+            state=DialogueState.ERROR,
+            needs_more_info=False
+        )
+
+@router.post("/chat/expert", response_model=ChatbotResponse)
+async def chat_expert_query(
+    req: ExpertQueryRequest,
+    dialogue_manager: DialogueManager = Depends(get_dialogue_manager),
+    general_chatbot: GeneralChatbot = Depends(get_general_chatbot)
+):
+    """전문가 AI와의 대화를 처리합니다."""
+    try:
+        session_state = req.session_state or {}
+        session_state["expert_type"] = req.expert_type
+        
+        # 대화 관리자를 통한 메시지 처리
+        response = await dialogue_manager.process_message(
+            text=req.text,
+            session_state=session_state,
+            user_type=req.user_type
+        )
+        
+        # 일반 챗봇을 통한 응답 가공
+        friendly_response = await general_chatbot.create_user_friendly_response(
+            expert_response=response,
+            conversation=[{"role": "user", "content": req.text}],
+            user_type=req.user_type
+        )
+        
+        chatbot_response = ChatbotResponse(
+            answer=friendly_response["answer"],
+            state=DialogueState(response.get("state", DialogueState.ERROR)),
+            intent=response.get("intent"),
+            slots=response.get("slots"),
+            needs_more_info=response.get("needs_more_info", False),
+            cards=friendly_response.get("cards"),
+            action_cards=response.get("action_cards")
+        )
+        
+        return chatbot_response
+        
+    except Exception as e:
+        logger.exception("Error processing expert query")
+        return ChatbotResponse(
+            answer="죄송합니다. 전문가 응답을 처리하는 중 오류가 발생했습니다.",
+            state=DialogueState.ERROR,
+            needs_more_info=False
+        )
 
 @router.post("/analyze/benefits")
 async def analyze_endpoint(user_info: dict, job_info: dict):

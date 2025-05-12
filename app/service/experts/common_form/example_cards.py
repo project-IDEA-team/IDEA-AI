@@ -41,20 +41,28 @@ EDUCATION_CARD_TEMPLATE = {
 }
 
 EMPLOYMENT_CARD_TEMPLATE = {
-    "id": "employment-info-1",
-    "title": "장애인 취업 정보",
-    "subtitle": "취업 지원",
-    "summary": "장애인 취업을 위한 주요 정보와 지원 제도",
+    "id": "employment-info",
+    "title": "장애인 취업/창업 지원",
+    "subtitle": "한국장애인고용공단",
+    "summary": "맞춤형 취업 정보와 창업 지원 서비스 안내",
     "type": "employment",
-    "details": "장애인 취업을 위한 다양한 지원 제도 안내입니다.",
+    "details": "취업/창업 지원 서비스:\n- 맞춤형 일자리 정보\n- 직업능력개발 훈련\n- 창업 교육 및 컨설팅\n- 취업 성공 사례",
     "source": {
         "url": "https://www.kead.or.kr",
         "name": "한국장애인고용공단",
         "phone": "1588-1519"
     },
     "buttons": [
-        {"type": "link", "label": "자세히 보기", "value": "https://www.kead.or.kr"},
-        {"type": "tel", "label": "전화 문의", "value": "1588-1519"}
+        {
+            "type": "link",
+            "label": "취업 정보",
+            "value": "https://www.kead.or.kr"
+        },
+        {
+            "type": "tel",
+            "label": "상담 문의",
+            "value": "1588-1519"
+        }
     ]
 }
 
@@ -78,26 +86,26 @@ WELFARE_CARD_TEMPLATE = {
 
 POLICY_CARD_TEMPLATE = {
     "id": "policy-info",
-    "title": "장애인 의무고용 제도",
-    "subtitle": "고용노동부",
-    "summary": "기업에서 장애인을 일정 비율 이상 고용하도록 하는 제도",
+    "title": "장애인 종합 지원 정책",
+    "subtitle": "보건복지부",
+    "summary": "장애인을 위한 의료, 복지, 취업 관련 정부 지원 정책",
     "type": "policy",
-    "details": "- 내용: 일정 규모 이상 사업장에서 장애인을 일정 비율 이상 고용하도록 의무화\n- 고용률: 50인 이상 사업장 2.6% 이상(2024년 기준)\n- 문의처: 한국장애인고용공단 1350 (유료)",
+    "details": "장애인을 위한 주요 지원 정책 안내:\n- 의료비 지원\n- 보조기기 지원\n- 활동지원 서비스\n- 취업 지원 프로그램",
     "source": {
-        "url": "https://www.kead.or.kr",
-        "name": "한국장애인고용공단",
-        "phone": "1350"
+        "url": "https://www.bokjiro.go.kr",
+        "name": "복지로",
+        "phone": "129"
     },
     "buttons": [
         {
             "type": "link",
             "label": "자세히 보기",
-            "value": "https://www.kead.or.kr"
+            "value": "https://www.bokjiro.go.kr"
         },
         {
             "type": "tel",
-            "label": "전화 문의",
-            "value": "1350"
+            "label": "상담 문의",
+            "value": "129"
         }
     ]
 }
@@ -153,5 +161,59 @@ COUNSELING_CARD_TEMPLATE = {
     "buttons": [
         {"type": "link", "label": "자세히 보기", "value": "https://www.kawid.or.kr"},
         {"type": "tel", "label": "전화 문의", "value": "02-3472-3556"}
+    ]
+}
+
+# 기업용 전문가 카드 템플릿
+
+COMPANY_POLICY_CARD_TEMPLATE = {
+    "id": "company-policy-info",
+    "title": "장애인 고용 지원 제도",
+    "subtitle": "고용노동부",
+    "summary": "기업의 장애인 고용을 위한 법률 및 지원 제도 안내",
+    "type": "company_policy",
+    "details": "주요 지원 제도:\n- 장애인 고용 장려금\n- 시설장비 지원금\n- 고용관리 비용 지원\n- 표준사업장 설립 지원",
+    "source": {
+        "url": "https://www.moel.go.kr",
+        "name": "고용노동부",
+        "phone": "1350"
+    },
+    "buttons": [
+        {
+            "type": "link",
+            "label": "자세히 보기",
+            "value": "https://www.moel.go.kr"
+        },
+        {
+            "type": "tel",
+            "label": "고용공단 문의",
+            "value": "1350"
+        }
+    ]
+}
+
+RECRUITMENT_CARD_TEMPLATE = {
+    "id": "recruitment-info",
+    "title": "장애인 인재 채용 안내",
+    "subtitle": "한국장애인고용공단",
+    "summary": "기업 맞춤형 장애인 인재 추천 서비스",
+    "type": "recruitment",
+    "details": "채용 지원 서비스:\n- 맞춤형 인재 추천\n- 구직자 프로필 검색\n- 채용 절차 컨설팅\n- 정부 지원금 안내",
+    "source": {
+        "url": "https://www.kead.or.kr",
+        "name": "한국장애인고용공단",
+        "phone": "1588-1519"
+    },
+    "buttons": [
+        {
+            "type": "link",
+            "label": "인재 검색",
+            "value": "https://www.kead.or.kr"
+        },
+        {
+            "type": "tel",
+            "label": "채용 문의",
+            "value": "1588-1519"
+        }
     ]
 } 

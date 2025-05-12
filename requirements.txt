@@ -3,6 +3,7 @@ fastapi[all]
 
 # 데이터베이스 및 저장소
 pymongo
+PyMySQL
 
 # AI/ML 관련 패키지
 langchain
