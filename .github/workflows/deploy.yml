@@ -1,0 +1,82 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ] # 또는 master, develop 등 배포할 브랜치
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: hwngjuyeong/ai-backend:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 기존 컨테이너 정리
+            docker stop ai-backend-container || true
+            docker rm ai-backend-container || true
+            
+            # 기존 이미지 삭제 (필요한 경우)
+            docker rmi hwngjuyeong/ai-backend:latest || true
+            
+            # 사용하지 않는 이미지, 컨테이너, 볼륨 등 정리 (선택 사항)
+            docker system prune -f
+            
+            # 최신 이미지 가져오기
+            docker pull hwngjuyeong/ai-backend:latest
+            
+            # 환경 변수와 함께 컨테이너 실행 (메모리 제한 포함)
+            docker run -d -p 8000:8000 --name ai-backend-container \
+              --memory="256m" --memory-swap="512m" \
+              --restart=on-failure \
+              -e MONGO_URI="${{ secrets.MONGO_URI }}" \
+              -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+              -e OPENAI_API_BASE="https://api.openai.com/v1" \
+              -e OPENAI_MODEL_NAME="gpt-4.1-mini" \
+              -e HOST="0.0.0.0" \
+              -e PORT="8000" \
+              -e DEBUG="False" \
+              -e LOG_LEVEL="INFO" \
+              -e LOG_FILE="app.log" \
+              -e DB_HOST="localhost" \
+              -e DB_PORT="27017" \
+              -e DB_NAME="idea_ai" \
+              -e DB_USER="${{ secrets.DB_USER }}" \
+              -e DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              -e SESSION_SECRET="${{ secrets.SESSION_SECRET }}" \
+              -e SESSION_EXPIRE_DAYS="7" \
+              -e MYSQL_HOST="43.201.102.244" \
+              -e MYSQL_PORT="3306" \
+              -e MYSQL_USER="idea_user" \
+              -e MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
+              -e MYSQL_DB="idea_db" \
+              hwngjuyeong/ai-backend:latest
+            
+            # 컨테이너 실행 확인
+            docker ps | grep ai-backend-container
+            
+            # 로그 확인 (최근 10줄)
+            sleep 5
+            docker logs --tail 10 ai-backend-container
+            
+            # 사용하지 않는 이미지 정리 (dangling 이미지 제거)
+            docker image prune -f
