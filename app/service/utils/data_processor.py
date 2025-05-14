@@ -32,7 +32,10 @@ class DataProcessor:
         stopwords = [
             "안녕", "하세요", "입니다", "그리고", "그런데", "하지만", "또한", "이제", "만약", "어떻게",
             "언제", "왜", "어디", "누구", "무엇", "얼마나", "있는", "있다", "없는", "없다", "해서",
-            "이런", "저런", "어떤", "제가", "나는", "너는", "우리", "당신", "그것", "좀", "많이"
+            "이런", "저런", "어떤", "제가", "나는", "너는", "우리", "당신", "그것", "좀", "많이",
+            # 정책 도메인 불용어 추가
+            "정책", "지원", "제도", "돕는", "관련", "정보", "문의", "수", "하는", "위한", "대해", "대한",
+            "있나요", "있니", "있습니까", "있을까요", "있으면", "있어", "있던", "있었나요", "있었니", "있었습니까"
         ]
         
         # 정규식으로 단어 분리 (한글, 영문, 숫자)
@@ -112,33 +115,33 @@ class DataProcessor:
             logger.error(f"JSON 파싱 오류: {e}")
             return None
     
-    # @staticmethod
-    # def extract_structured_data(text: str) -> Optional[Dict[str, Any]]:
-    #     """
-    #     텍스트에서 구조화된 데이터를 추출합니다.
-    #     
-    #     Args:
-    #         text: 구조화된 데이터를 추출할 텍스트
-    #         
-    #     Returns:
-    #         추출된 구조화된 데이터 또는 None (추출 실패 시)
-    #     """
-    #     # JSON 형식 문자열 추출 시도
-    #     json_pattern = r'```json\s*([\s\S]*?)\s*```'
-    #     json_match = re.search(json_pattern, text)
-    #     
-    #     if json_match:
-    #         json_str = json_match.group(1)
-    #         return DataProcessor.parse_json_safely(json_str)
-    #     
-    #     # 일반 텍스트에서 키-값 쌍 추출 시도
-    #     result = {}
-    #     
-    #     # 간단한 키-값 패턴 (예: "키: 값")
-    #     kv_pattern = r'([^:\n]+):\s*([^\n]+)'
-    #     for match in re.finditer(kv_pattern, text):
-    #         key = match.group(1).strip()
-    #         value = match.group(2).strip()
-    #         result[key] = value
-    #     
-    #     return result if result else None 
+    @staticmethod
+    def extract_structured_data(text: str) -> Optional[Dict[str, Any]]:
+        """
+        텍스트에서 구조화된 데이터를 추출합니다.
+        
+        Args:
+            text: 구조화된 데이터를 추출할 텍스트
+            
+        Returns:
+            추출된 구조화된 데이터 또는 None (추출 실패 시)
+        """
+        # JSON 형식 문자열 추출 시도
+        json_pattern = r'```json\s*([\s\S]*?)\s*```'
+        json_match = re.search(json_pattern, text)
+        
+        if json_match:
+            json_str = json_match.group(1)
+            return DataProcessor.parse_json_safely(json_str)
+        
+        # 일반 텍스트에서 키-값 쌍 추출 시도
+        result = {}
+        
+        # 간단한 키-값 패턴 (예: "키: 값")
+        kv_pattern = r'([^:\n]+):\s*([^\n]+)'
+        for match in re.finditer(kv_pattern, text):
+            key = match.group(1).strip()
+            value = match.group(2).strip()
+            result[key] = value
+        
+        return result if result else None 

@@ -48,7 +48,7 @@ EMPLOYMENT_CARD_TEMPLATE = {
     "type": "employment",
     "details": "장애인 취업을 위한 다양한 지원 제도 안내입니다.",
     "source": {
-        "url": "https://www.kead.or.kr",
+        "url": "https://www.worktogether.or.kr/main.do",
         "name": "한국장애인고용공단",
         "phone": "1588-1519"
     },

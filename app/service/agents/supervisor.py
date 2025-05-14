@@ -21,11 +21,8 @@ class SupervisorAgent:
         
         - 정책: 장애인 관련 법률, 제도, 정책 등에 대한 정보 제공
         - 취업: 장애인 취업 정보, 구직 활동 지원, 직업 훈련 등 정보 제공
-        - 복지: 장애인 복지 서비스, 혜택 등에 대한 정보 제공
-        - 창업: 장애인 창업 지원, 창업 교육, 자금 지원 등 정보 제공
-        - 의료: 장애인 의료 지원, 재활 치료, 건강 관리 등 정보 제공
-        - 교육: 장애인 교육 프로그램, 학습 지원, 특수 교육 등 정보 제공
-        - 상담: 장애인과 가족의 심리, 정서적 고충에 대한 상담 제공
+        - 고용 정책: 장애인 고용 정책, 고용 지원 제도, 고용 혜택 등에 대한 정보 제공
+        - 구직자 현황: 장애인 구직자 현황, 구직자 통계, 구직자 트렌드 등에 대한 정보 제공
         
         입력된 사용자 대화 내용을 분석하여 가장 적합한 전문가 AI를 선택하고, 
         관련된 키워드를 추출하여 해당 전문가 AI에게 전달할 수 있도록 준비하세요.
@@ -61,7 +58,7 @@ class SupervisorAgent:
             parsed_result = json.loads(result)
             
             # 전문가 유형과 키워드 추출
-            expert_type_str = parsed_result.get("expert_type", "상담")
+            expert_type_str = parsed_result.get("expert_type", "취업")
             keywords = parsed_result.get("keywords", [])
             
             # 문자열을 ExpertType으로 변환
@@ -73,7 +70,7 @@ class SupervisorAgent:
             
             # 기본값: 상담 전문가
             if expert_type is None:
-                expert_type = ExpertType.COUNSELING
+                expert_type = ExpertType.EMPLOYMENT
             
             # 장애인 구직자 관련 데이터 요청 처리 (고정 데이터 반환)
             latest_message = conversation[-1]["content"] if conversation else ""
