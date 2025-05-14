@@ -68,38 +68,6 @@ class SupervisorAgent:
                     expert_type = et
                     break
             
-            # 기본값: 상담 전문가
-            if expert_type is None:
-                expert_type = ExpertType.EMPLOYMENT
-            
-            # 장애인 구직자 관련 데이터 요청 처리 (고정 데이터 반환)
-            latest_message = conversation[-1]["content"] if conversation else ""
-            if any(keyword in latest_message for keyword in ["장애인 구직자", "구직자 현황", "구직자 통계"]):
-                # 고정된 샘플 데이터
-                cards = [
-                    {
-                        "id": "1",
-                        "title": "사무직 (지체장애)",
-                        "summary": "서울 / 중증",
-                        "details": "연령: 30대, 희망임금: 월 200만원 이상, 등록일: 2023-09-15"
-                    },
-                    {
-                        "id": "2",
-                        "title": "IT/프로그래머 (시각장애)",
-                        "summary": "경기 / 중증",
-                        "details": "연령: 20대, 희망임금: 월 250만원 이상, 등록일: 2023-10-01"
-                    },
-                    {
-                        "id": "3",
-                        "title": "콜센터 (청각장애)",
-                        "summary": "인천 / 경증",
-                        "details": "연령: 40대, 희망임금: 월 180만원 이상, 등록일: 2023-10-10"
-                    }
-                ]
-                return "장애인 구직자 현황 정보입니다.", cards
-            
-            return expert_type, keywords
-            
         except Exception as e:
             logger.error(f"슈퍼바이저 분석 중 오류 발생: {e}")
             return ExpertType.COUNSELING, []

@@ -409,7 +409,7 @@ class PolicyExpert(BaseExpert):
                         "index": "vector_index_welfare_list",
                         "path": "embedding",
                         "queryVector": user_embedding,
-                        "numCandidates": 100,
+                        "numCandidates": 1000,
                         "limit": limit
                     }
                 }
