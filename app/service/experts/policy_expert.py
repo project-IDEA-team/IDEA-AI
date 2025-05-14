@@ -7,6 +7,9 @@ from app.models.expert_type import ExpertType
 from app.service.experts.base_expert import BaseExpert
 from app.service.openai_client import get_client
 from app.service.experts.common_form.example_cards import POLICY_CARD_TEMPLATE
+from app.service.utils.data_processor import DataProcessor
+from motor.motor_asyncio import AsyncIOMotorClient
+from app.service.embedding import get_embedding
 
 
 
@@ -131,12 +134,8 @@ class PolicyExpert(BaseExpert):
                 logger.warning("유효한 키워드가 없습니다.")
                 return [POLICY_CARD_TEMPLATE]
             
-            # '장애인' 키워드는 제외하고, 나머지 중 첫 번째 키워드 사용
-            search_keywords = [kw for kw in valid_keywords if kw != "장애인"]
-            if search_keywords:
-                main_keyword = search_keywords[0]
-            else:
-                main_keyword = "장애인"
+            # 기존 키워드 복사
+            search_keywords = valid_keywords.copy()
             
             # 백엔드 API에서 데이터 가져오기
             retry_count = 0
@@ -145,7 +144,12 @@ class PolicyExpert(BaseExpert):
             while retry_count < max_retries:
                 try:
                     async with aiohttp.ClientSession() as session:
-                        url = f"{self.backend_api_url}/public/welfare/search?keyword={main_keyword}"
+                        # search_keywords가 리스트일 경우 문자열로 변환
+                        if isinstance(search_keywords, list):
+                            keyword_str = " ".join(search_keywords)
+                        else:
+                            keyword_str = str(search_keywords)
+                        url = f"{self.backend_api_url}/public/welfare/search?keyword={keyword_str}"
                         
                         logger.info(f"백엔드 API 호출 시도 {retry_count + 1}/{max_retries}: {url}")
                         
@@ -155,7 +159,7 @@ class PolicyExpert(BaseExpert):
                                 logger.info(f"백엔드 API 응답 데이터 수: {len(search_results) if isinstance(search_results, list) else 0}")
                                 
                                 if not search_results:
-                                    logger.warning(f"키워드 '{main_keyword}'에 대한 검색 결과가 없습니다.")
+                                    logger.warning(f"키워드 '{keyword_str}'에 대한 검색 결과가 없습니다.")
                                     return [POLICY_CARD_TEMPLATE]
                                 
                                 # 검색 결과를 카드 형식으로 변환
@@ -172,15 +176,16 @@ class PolicyExpert(BaseExpert):
                                     card = {
                                         "id": result.get("servId", ""),
                                         "title": result.get("servNm", ""),
-                                        "subtitle": result.get("jurMnofNm", ""),  # 담당부처
-                                        "summary": result.get("servDgst", ""),  # 서비스 요약
+                                        "subtitle": result.get("jurMnofNm", ""),  
+                                        "summary": result.get("jurMnofNm", ""),  # 담당부처
                                         "type": "policy",
                                         "details": (
-                                            f"지원대상: {result.get('trgterIndvdlArray', '')}\n"
-                                            f"지원내용: {result.get('alwServCn', '')}\n"
-                                            f"신청방법: {result.get('slctCritCn', '')}\n"
-                                            f"지원주기: {result.get('sprtCycNm', '')}\n"
-                                            f"제공유형: {result.get('srvPvsnNm', '')}"
+                                            f"<b>지원대상:</b> {result.get('trgterIndvdlArray', '모두')}\n"
+                                            f"<b>지원내용:</b> {result.get('servDgst', '')}\n\n"
+                                            f"<b>신청방법:</b> {'온라인 신청 가능' if result.get('onapPsbltYn') == 'Y' else '오프라인 신청'}\n"
+                                            f"<b>문의전화:</b> {result.get('rprsCtadr', '')}\n"
+                                            f"<b>지원주기:</b> {result.get('sprtCycNm', '')}\n"
+                                            f"<b>제공유형:</b> {result.get('srvPvsnNm', '')}"
                                         ),
                                         "source": {
                                             "url": result.get("servDtlLink", ""),
@@ -244,18 +249,25 @@ class PolicyExpert(BaseExpert):
             응답 딕셔너리 (text, cards)
         """
         try:
-            # 검색 키워드 추출
+            logger.info(f"[임베딩] 의미론적 벡터 검색 시도: '{query}'")
+            # 1. 임베딩 기반 벡터 검색 우선
+            policy_cards = await self.search_policy_by_semantic(query, limit=3)
+            if policy_cards and policy_cards != [POLICY_CARD_TEMPLATE]:
+                logger.info(f"[임베딩] 벡터 검색 결과 {len(policy_cards)}건 반환")
+                response_text = "AI 임베딩 기반 정책 검색 결과입니다.\n\n"
+                for card in policy_cards:
+                    response_text += f"• {card['title']}\n{card['summary']}\n\n"
+                return {
+                    "text": response_text.strip(),
+                    "cards": policy_cards
+                }
+            # 2. 벡터 검색 결과 없으면 기존 키워드 기반 검색 fallback
+            logger.info("[임베딩] 벡터 검색 결과 없음, 키워드 기반 검색으로 fallback")
             search_keywords = self._extract_search_keywords(query, keywords)
             logger.debug(f"추출된 검색 키워드: {search_keywords}")
-            
-            # 정책 정보 검색
             response = await self._search_policy_info(query, search_keywords)
-            
-            # 응답 검증 및 수정
             validated_response = self.validate_response(response)
-            
             return validated_response
-            
         except Exception as e:
             logger.error(f"정책 전문가 응답 생성 중 오류 발생: {e}", exc_info=True)
             return {"text": "죄송합니다. 응답을 생성하는 중 문제가 발생했습니다.", "cards": []}
@@ -277,18 +289,6 @@ class PolicyExpert(BaseExpert):
         
         return messages
     
-    def _format_card(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        return {
-            "id": data.get("id", POLICY_CARD_TEMPLATE["id"]),
-            "title": data.get("title", POLICY_CARD_TEMPLATE["title"]),
-            "subtitle": data.get("subtitle", POLICY_CARD_TEMPLATE["subtitle"]),
-            "summary": data.get("summary", POLICY_CARD_TEMPLATE["summary"]),
-            "type": data.get("type", POLICY_CARD_TEMPLATE["type"]),
-            "details": data.get("details", POLICY_CARD_TEMPLATE["details"]),
-            "source": data.get("source", POLICY_CARD_TEMPLATE["source"]),
-            "buttons": data.get("buttons", POLICY_CARD_TEMPLATE["buttons"])
-        }
-    
     def _get_description(self) -> str:
         return "장애인 관련 법률, 제도, 정책 등에 대한 정보를 제공합니다."
     
@@ -307,42 +307,13 @@ class PolicyExpert(BaseExpert):
             검색 키워드 목록
         """
         try:
-            # 1. 기본 키워드 (장애인)
-            base_keywords = ["장애인"]
-            
-            # 2. 슈퍼바이저가 제공한 키워드가 있으면 사용
-            if keywords and isinstance(keywords, list):
-                valid_keywords = [kw for kw in keywords if isinstance(kw, str)]
-                if valid_keywords:
-                    return base_keywords + valid_keywords[:3]  # 최대 3개 키워드만 사용
-            
-            # 3. 쿼리에서 직접 키워드 추출
-            query_keywords = []
-            
-            # 주요 키워드 패턴
-            key_patterns = [
-                r"장애인\s+(\w+)",  # "장애인 이동" -> "이동"
-                r"(\w+)\s+지원금",  # "이동 지원금" -> "이동"
-                r"(\w+)\s+혜택",    # "이동 혜택" -> "이동"
-                r"(\w+)\s+제도",    # "이동 제도" -> "이동"
-                r"(\w+)\s+서비스"   # "이동 서비스" -> "이동"
-            ]
-            
-            import re
-            for pattern in key_patterns:
-                matches = re.findall(pattern, query)
-                query_keywords.extend(matches)
-            
-            # 중복 제거 및 정제
-            query_keywords = list(set(query_keywords))
-            query_keywords = [kw.strip() for kw in query_keywords if len(kw.strip()) > 1]
-            
-            # 최종 키워드 조합 (기본 키워드 + 쿼리 키워드)
-            final_keywords = base_keywords + query_keywords[:3]  # 최대 3개 키워드만 사용
-            
-            logger.info(f"최종 검색 키워드: {final_keywords}")
-            return final_keywords
-            
+            # DataProcessor의 키워드 추출 함수 사용
+            extracted = DataProcessor.extract_keywords(query, max_keywords=4)
+            # "장애인"이 없으면 추가
+            if "장애인" not in extracted:
+                extracted.insert(0, "장애인")
+            logger.info(f"최종 검색 키워드: {extracted}")
+            return extracted
         except Exception as e:
             logger.error(f"키워드 추출 중 오류 발생: {str(e)}")
             return ["장애인"]  # 오류 발생 시 기본 키워드만 반환
@@ -415,6 +386,68 @@ class PolicyExpert(BaseExpert):
                 "text": "죄송합니다. 정책 정보를 검색하는 중에 문제가 발생했습니다.",
                 "cards": [POLICY_CARD_TEMPLATE]
             }
+
+    async def search_policy_by_semantic(self, user_query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        사용자 쿼리를 임베딩하여 MongoDB 벡터 유사도 검색으로 정책을 찾는다.
+        Args:
+            user_query: 사용자의 자연어 질문
+            limit: 반환할 정책 카드 개수
+        Returns:
+            정책 카드 리스트
+        """
+        try:
+            user_embedding = await get_embedding(user_query)
+            # MongoDB 연결 (비동기)
+            mongo_uri = os.getenv("MONGO_URI")
+            client = AsyncIOMotorClient(mongo_uri)
+            db = client["public_data_db"]
+            collection = db["welfare_service_list"]
+            pipeline = [
+                {
+                    "$vectorSearch": {
+                        "index": "vector_index_welfare_list",
+                        "path": "embedding",
+                        "queryVector": user_embedding,
+                        "numCandidates": 100,
+                        "limit": limit
+                    }
+                }
+            ]
+            cursor = collection.aggregate(pipeline)
+            results = []
+            async for doc in cursor:
+                card = {
+                    "id": doc.get("servId", ""),
+                    "title": doc.get("servNm", ""),
+                    "summary": doc.get("intrsThemaArray", ""),
+                    "type": "policy",
+                    "details": doc.get("servDgst", ""),
+                    "source": {
+                        "subtitle": doc.get("srvPvsnNm", ""),
+                        "url": doc.get("servDtlLink", ""),
+                        "name": doc.get("jurOrgNm", ""),
+                        "phone": doc.get("rprsCtadr", "")
+                    },
+                    "buttons": [
+                        {
+                            "type": "link",
+                            "label": "자세히 보기",
+                            "value": doc.get("servDtlLink", "")
+                        }
+                    ]
+                }
+                if doc.get("rprsCtadr"):
+                    card["buttons"].append({
+                        "type": "tel",
+                        "label": "문의하기",
+                        "value": doc.get("rprsCtadr")
+                    })
+                results.append(card)
+            return results
+        except Exception as e:
+            logger.error(f"임베딩 기반 정책 검색 중 오류 발생: {str(e)}")
+            return [POLICY_CARD_TEMPLATE]
 
 async def policy_response(query: str, keywords: List[str] = None, conversation_history=None) -> tuple:
     """

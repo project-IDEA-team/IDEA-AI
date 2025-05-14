@@ -3,11 +3,11 @@ import logging
 from app.models.expert_type import ExpertType
 from app.service.experts.policy_expert import policy_response, PolicyExpert
 from app.service.experts.employment_expert import employment_response, EmploymentExpert
-from app.service.experts.welfare_expert import welfare_response, WelfareExpert
-from app.service.experts.startup_expert import startup_response, StartupExpert
-from app.service.experts.medical_expert import medical_response, MedicalExpert
-from app.service.experts.education_expert import education_response, EducationExpert
-from app.service.experts.counseling_expert import counseling_response, CounselingExpert
+# from app.service.experts.welfare_expert import welfare_response, WelfareExpert
+# from app.service.experts.startup_expert import startup_response, StartupExpert
+# from app.service.experts.medical_expert import medical_response, MedicalExpert
+# from app.service.experts.education_expert import education_response, EducationExpert
+# from app.service.experts.counseling_expert import counseling_response, CounselingExpert
 
 logger = logging.getLogger(__name__)
 
@@ -17,21 +17,21 @@ expert_responses = {
     "장애인 정책": policy_response,
     "취업": employment_response,
     "장애인 취업": employment_response,
-    "복지": welfare_response,
-    "장애인 복지": welfare_response,
-    "창업": startup_response,
-    "장애인 창업": startup_response,
-    "의료": medical_response,
-    "장애인 의료": medical_response,
-    "교육": education_response,
-    "장애인 교육": education_response,
-    "상담": counseling_response,
-    "전문 상담": counseling_response,
+    # "복지": welfare_response,
+    # "장애인 복지": welfare_response,
+    # "창업": startup_response,
+    # "장애인 창업": startup_response,
+    # "의료": medical_response,
+    # "장애인 의료": medical_response,
+    # "교육": education_response,
+    # "장애인 교육": education_response,
+    # "상담": counseling_response,
+    # "전문 상담": counseling_response,
     # 기업회원용 전문가 응답 매핑
     "고용 정책": employment_response,
     "구직자 현황": employment_response,
-    "고용 컨설팅": employment_response,
-    "지원의향서": employment_response
+    # "고용 컨설팅": employment_response,
+    # "지원의향서": employment_response
 }
 
 # 전문가 유형별 클래스 매핑
@@ -40,37 +40,37 @@ expert_classes = {
     "장애인 정책": PolicyExpert,
     "취업": EmploymentExpert,
     "장애인 취업": EmploymentExpert,
-    "복지": WelfareExpert,
-    "장애인 복지": WelfareExpert,
-    "창업": StartupExpert,
-    "장애인 창업": StartupExpert,
-    "의료": MedicalExpert,
-    "장애인 의료": MedicalExpert,
-    "교육": EducationExpert,
-    "장애인 교육": EducationExpert,
-    "상담": CounselingExpert,
-    "전문 상담": CounselingExpert,
+    # "복지": WelfareExpert,
+    # "장애인 복지": WelfareExpert,
+    # "창업": StartupExpert,
+    # "장애인 창업": StartupExpert,
+    # "의료": MedicalExpert,
+    # "장애인 의료": MedicalExpert,
+    # "교육": EducationExpert,
+    # "장애인 교육": EducationExpert,
+    # "상담": CounselingExpert,
+    # "전문 상담": CounselingExpert,
     # 기업회원용 전문가 클래스 매핑
     "고용 정책": EmploymentExpert,
     "구직자 현황": EmploymentExpert,
-    "고용 컨설팅": EmploymentExpert,
-    "지원의향서": EmploymentExpert
+    # "고용 컨설팅": EmploymentExpert,
+    # "지원의향서": EmploymentExpert
 }
 
 # 전문가 유형 이름 매핑 (ExpertType enum과 한글 이름 매핑)
 expert_type_names = {
     ExpertType.POLICY: "정책",
     ExpertType.EMPLOYMENT: "취업",
-    ExpertType.WELFARE: "복지",
-    ExpertType.STARTUP: "창업",
-    ExpertType.MEDICAL: "의료",
-    ExpertType.EDUCATION: "교육",
-    ExpertType.COUNSELING: "상담",
+    # ExpertType.WELFARE: "복지",
+    # ExpertType.STARTUP: "창업",
+    # ExpertType.MEDICAL: "의료",
+    # ExpertType.EDUCATION: "교육",
+    # ExpertType.COUNSELING: "상담",
     # 기업회원용 전문가 타입 매핑
     ExpertType.EMPLOYMENT_POLICY: "고용 정책",
     ExpertType.JOB_SEEKERS: "구직자 현황",
-    ExpertType.CONSULTING: "고용 컨설팅",
-    ExpertType.APPLICATION_MANAGE: "지원의향서"
+    # ExpertType.CONSULTING: "고용 컨설팅",
+    # ExpertType.APPLICATION_MANAGE: "지원의향서"
 }
 
 # 한글 이름으로 ExpertType 찾기
@@ -79,16 +79,16 @@ expert_names_to_type = {v: k for k, v in expert_type_names.items()}
 expert_names_to_type.update({
     "장애인 정책": ExpertType.POLICY,
     "장애인 취업": ExpertType.EMPLOYMENT,
-    "장애인 복지": ExpertType.WELFARE,
-    "장애인 창업": ExpertType.STARTUP,
-    "장애인 의료": ExpertType.MEDICAL,
-    "장애인 교육": ExpertType.EDUCATION,
-    "전문 상담": ExpertType.COUNSELING,
+    # "장애인 복지": ExpertType.WELFARE,
+    # "장애인 창업": ExpertType.STARTUP,
+    # "장애인 의료": ExpertType.MEDICAL,
+    # "장애인 교육": ExpertType.EDUCATION,
+    # "전문 상담": ExpertType.COUNSELING,
     # 기업회원용 전문가 타입 매핑
     "고용 정책": ExpertType.EMPLOYMENT_POLICY,
     "구직자 현황": ExpertType.JOB_SEEKERS,
-    "고용 컨설팅": ExpertType.CONSULTING,
-    "지원의향서": ExpertType.APPLICATION_MANAGE
+    # "고용 컨설팅": ExpertType.CONSULTING,
+    # "지원의향서": ExpertType.APPLICATION_MANAGE
 })
 
 async def get_expert_response(query: str, expert_type: str, keywords: List[str] = None, conversation_history=None) -> Tuple[str, List[Dict[str, Any]]]:
@@ -97,7 +97,7 @@ async def get_expert_response(query: str, expert_type: str, keywords: List[str] 
     
     Args:
         query: 사용자 쿼리
-        expert_type: 전문가 유형 ("정책", "취업", "복지", "창업", "의료", "교육", "상담" 중 하나)
+        expert_type: 전문가 유형 ("정책", "취업","고용 정책", "구직자 현황" 중 하나)
         keywords: 슈퍼바이저가 추출한 키워드 목록
         conversation_history: 이전 대화 내용
         
@@ -111,7 +111,6 @@ async def get_expert_response(query: str, expert_type: str, keywords: List[str] 
         
         # 키워드가 없는 경우 빈 리스트로 초기화
         if keywords is None:
-            keywords = []
             # 간단한 키워드 추출 (쿼리에서 주요 단어 추출)
             words = query.replace("?", "").replace(".", "").replace(",", "").split()
             keywords = [w for w in words if len(w) > 1 and w not in ["저는", "나는", "제가", "그런데", "그리고", "하지만", "어떻게", "어떤", "무엇", "왜"]]
@@ -151,20 +150,20 @@ def get_available_experts() -> List[Dict[str, Any]]:
     """
     from app.service.experts.policy_expert import PolicyExpert
     from app.service.experts.employment_expert import EmploymentExpert
-    from app.service.experts.welfare_expert import WelfareExpert
-    from app.service.experts.startup_expert import StartupExpert
-    from app.service.experts.medical_expert import MedicalExpert
-    from app.service.experts.education_expert import EducationExpert
-    from app.service.experts.counseling_expert import CounselingExpert
+    # from app.service.experts.welfare_expert import WelfareExpert
+    # from app.service.experts.startup_expert import StartupExpert
+    # from app.service.experts.medical_expert import MedicalExpert
+    # from app.service.experts.education_expert import EducationExpert
+    # from app.service.experts.counseling_expert import CounselingExpert
     
     experts = [
         PolicyExpert(),
         EmploymentExpert(),
-        WelfareExpert(),
-        StartupExpert(),
-        MedicalExpert(),
-        EducationExpert(),
-        CounselingExpert()
+        # WelfareExpert(),
+        # StartupExpert(),
+        # MedicalExpert(),
+        # EducationExpert(),
+        # CounselingExpert()
     ]
     
     return [

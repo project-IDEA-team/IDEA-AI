@@ -131,12 +131,12 @@ class LLMAgent:
                     "가까운 한국장애인고용공단 지사나 고용센터에서 상담받을 수 있습니다."
                 ),
                 "source": {
-                    "url": "https://www.kead.or.kr",
-                    "name": "한국장애인고용공단",
+                    "url": "https://www.worktogether.or.kr/main.do",
+                    "name": "장애인고용포털",
                     "phone": "1588-1519"
                 },
                 "buttons": [
-                    {"type": "link", "label": "자세히 보기", "value": "https://www.kead.or.kr"},
+                    {"type": "link", "label": "자세히 보기", "value": "https://www.worktogether.or.kr/main.do"},
                     {"type": "tel", "label": "전화 문의", "value": "1588-1519"}
                 ]
             }]
