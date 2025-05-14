@@ -5,6 +5,7 @@ aiohttp
 # 데이터베이스 및 저장소
 pymongo
 pymysql
+motor
 
 # AI/ML 관련 패키지
 langchain
